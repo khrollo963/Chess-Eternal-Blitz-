@@ -1,4 +1,4 @@
-# ⚔️ Chess Eternal: Four Kings & Golden Dawn ⚡
+# ⚔️ Chess Eternal: Four Kings & Golden Dawn: PLAY HERE https://khrollo963.github.io/Chess-Eternal-Blitz-/ ⚡
 
 **Two forgotten chess variants. One pixel-perfect arcade cabinet. Zero dependencies.**
 
