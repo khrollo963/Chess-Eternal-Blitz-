@@ -32,7 +32,7 @@ export function registerInvitations(app: App, lobby: LobbyService, verifyAuth?: 
       const transport = await matchMaker.createRoom('enochian', { matchId, creationPermit: lobby.prepareTransport(matchId) });
       room = matchMaker.getLocalRoomById(transport.roomId);
       await lobby.bindRoom(matchId, transport.roomId);
-      res.status(201).json({ ...ticket, roomId: transport.roomId });
+      res.status(201).json({ ...ticket, color: data.color, roomId: transport.roomId });
     } catch (error) {
       if (matchId) { try { await lobby.voidCreation(matchId); } catch { /* unstarted reservation expires absolutely */ } }
       if (room) { try { await room.disconnect(); } catch { /* transport already closed */ } }
@@ -47,7 +47,7 @@ export function registerInvitations(app: App, lobby: LobbyService, verifyAuth?: 
       const mapping = await lobby.lookup(data.code as string);
       if (!mapping.roomId) throw new Error('storage_unavailable');
       const ticket = await lobby.join(data.code as string, data.name as string, data.color as Color, await verifyAuth?.(req.headers.authorization));
-      res.json({ ...ticket, roomId: mapping.roomId });
+      res.json({ ...ticket, color: data.color, roomId: mapping.roomId });
     } catch (error) { const code = safeError(error); res.status(code === 'storage_unavailable' ? 503 : 400).json({ code }); }
   });
   app.post('/invitations/recover', async (req, res) => {
@@ -55,13 +55,13 @@ export function registerInvitations(app: App, lobby: LobbyService, verifyAuth?: 
     if (isReady && !isReady()) { res.status(503).json({ code: 'storage_unavailable' }); return; }
     try {
       const data = body(req.body);
-      const { record, owner } = await lobby.authenticate(data.matchId as string, data.credential);
+      const { record, owner, color } = await lobby.authenticate(data.matchId as string, data.credential);
       if (record.mode === 'ranked') {
         const verified = await verifyAuth?.(req.headers.authorization);
         if (!verified || verified.accountId !== owner.accountId) throw new Error('unauthorized');
       }
-      if (record.phase === 'finished' || record.phase === 'void') { res.json({ matchId: record.matchId, snapshot: publicSnapshot(record) }); return; }
-      res.json({ matchId: record.matchId, roomId: record.lobby.roomId });
+      if (record.phase === 'finished' || record.phase === 'void') { res.json({ matchId: record.matchId, color, snapshot: publicSnapshot(record) }); return; }
+      res.json({ matchId: record.matchId, color, roomId: record.lobby.roomId });
     } catch { res.status(401).json({ code: 'unauthorized' }); }
   });
   app.get('/invitations/:code', async (req, res) => {

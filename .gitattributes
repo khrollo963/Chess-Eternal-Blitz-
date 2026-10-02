@@ -1,4 +1,5 @@
 # Preserve the exact decoded game bytes on every checkout, including Windows.
 # Task 0 extraction must not normalize either game's line endings.
 chaturaji.html -text
-enochian.html -text
+# The pinned official SDK includes whitespace inside template literals: retain bytes.
+enochian.html -text whitespace=-blank-at-eol

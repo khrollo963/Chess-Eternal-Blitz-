@@ -7,10 +7,18 @@ import { root, readOriginal, extractGames } from '../scripts/client-baseline.mjs
 const originals = extractGames(readOriginal().toString('utf8'));
 const current = readFileSync(`${root}/enochian.html`, 'utf8');
 
-test('Enochian permits only its one inline script to change', () => {
+test('Enochian permits its original script and marked multiplayer additions to change', () => {
   assert.equal(typeof preservation.checkGamePage, 'function', 'A narrow reusable protection check exists');
   preservation.checkGamePage('enochian', current, originals.enochian.bytes.toString('utf8'));
   preservation.checkGamePage('enochian', current.replace("'use strict';", "'use strict';\n// permissible script comment"), originals.enochian.bytes.toString('utf8'));
+});
+
+test('multiplayer insertion markers cannot hide original markup corruption', () => {
+  for (const changed of [
+    current.replace('<!-- ENOCHIAN_MULTIPLAYER_UI_END -->', ''),
+    current.replace('<!-- ENOCHIAN_MULTIPLAYER_UI_BEGIN -->', '<!-- ENOCHIAN_MULTIPLAYER_UI_BEGIN --><!-- ENOCHIAN_MULTIPLAYER_UI_BEGIN -->'),
+    current.replace('<!-- ENOCHIAN_MULTIPLAYER_UI_END -->', '<!-- ENOCHIAN_MULTIPLAYER_UI_END -->extra'),
+  ]) assert.throws(() => preservation.checkGamePage('enochian', changed, originals.enochian.bytes.toString('utf8')));
 });
 
 test('Enochian CSS, markup, artwork, keys and statistics bridge stay protected', () => {
