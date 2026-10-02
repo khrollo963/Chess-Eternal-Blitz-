@@ -1,8 +1,42 @@
-# ⚔️ Chess Eternal: Four Kings & Golden Dawn: PLAY HERE https://khrollo963.github.io/Chess-Eternal-Blitz-/ ⚡
+<div align="center">
+
+<h1><a href="https://khrollo963.github.io/Chess-Eternal-Blitz-/">⚔️ Chess Eternal: Four Kings &amp; Golden Dawn — PLAY HERE ⚡</a></h1>
+
+<a href="https://khrollo963.github.io/Chess-Eternal-Blitz-/"><img src="poster.jpg" alt="Chess Eternal arcade poster showing Chaturaji and Enochian Chess side by side" width="920" /></a>
 
 **Two forgotten chess variants. One pixel-perfect arcade cabinet. Zero dependencies.**
 
+[![Play online](https://img.shields.io/badge/PLAY-ONLINE-ff9d00?style=for-the-badge)](https://khrollo963.github.io/Chess-Eternal-Blitz-/)
+![HTML](https://img.shields.io/badge/HTML-single%20file-e34f26?style=flat-square&logo=html5&logoColor=white)
+![CSS](https://img.shields.io/badge/CSS-retro%20arcade-1572b6?style=flat-square&logo=css3&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript-vanilla-f7df1e?style=flat-square&logo=javascript&logoColor=black)
+![Dependencies](https://img.shields.io/badge/dependencies-zero-5bca81?style=flat-square)
+
+[Quick start](#-quick-start) · [What's inside](#-whats-inside) · [Why it's fun](#-why-its-fun) · [Built with](#-built-with) · [Credits](#-credits)
+
+</div>
+
+---
+
+## 💡 What is this?
+
 A single self-contained HTML file that resurrects two of history's strangest chess offshoots — a dice-driven four-king battle royale and a Victorian occult team variant — and skins them both in glowing, scanline-soaked retro-arcade style. No installs, no build step, no backend. Open it and you're playing.
+
+## 📋 Table of contents
+
+- [Quick start](#-quick-start)
+- [What's inside](#-whats-inside)
+  - [Chaturaji — Four Kings Arcade](#-chaturaji--four-kings-arcade)
+  - [Enochian Chess — 2v2 Mystical Warfare](#-enochian-chess--2v2-mystical-warfare)
+  - [One shared launcher](#-one-shared-launcher)
+- [Why it's fun](#-why-its-fun)
+- [Built with](#-built-with)
+- [Credits](#-credits)
+- [License](#-license)
+
+## 🚀 Quick start
+
+**[Play Chess Eternal in your browser](https://khrollo963.github.io/Chess-Eternal-Blitz-/)** on desktop or mobile. To play locally, open [`index.html`](index.html) in a browser. There are no packages to install or commands to run.
 
 ---
 
