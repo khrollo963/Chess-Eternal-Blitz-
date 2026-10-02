@@ -3,6 +3,7 @@ import { EnochianState, applySnapshot, type PublicState } from "./EnochianState.
 import type { LobbyService, LobbyAction } from '../domain/lobby.js';
 import type { LobbyStore } from '../storage/LobbyStore.js';
 import { CommandProcessor } from '../domain/commands.js';
+import type { ActorContext } from '../domain/commands.js';
 import { publicSnapshot, type PublicSnapshot } from '../domain/match.js';
 
 function safeDomainError(error: unknown): Error {
@@ -25,6 +26,12 @@ export interface RoomScaffoldOptions {
   store?: LobbyStore;
   matchId?: string;
   creationPermit?: string;
+  isReady?: () => boolean;
+  connections?: ConnectionHooks;
+}
+export interface ConnectionHooks {
+  connect(matchId: string, credential: unknown, connectionId: string): Promise<{ actor: ActorContext; snapshot: PublicSnapshot }>;
+  depart(matchId: string, connectionId: string, intentional: boolean): Promise<boolean>;
 }
 
 // Transport lifecycle adapter, not durable seat ownership or disconnect policy.
@@ -36,12 +43,16 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
   private lobby?: LobbyService;
   private store?: LobbyStore;
   private matchId?: string;
+  private isReady?: () => boolean;
+  private connections?: ConnectionHooks;
+  private droppedSessions = new Set<string>();
 
   async onCreate(options: RoomScaffoldOptions) {
     try { await this.createRoom(options); } catch (error) { throw safeDomainError(error); }
   }
   private async createRoom(options: RoomScaffoldOptions) {
     this.delegates = options.delegates;
+    this.isReady = options.isReady; this.connections = options.connections;
     this.reconnectionSeconds = options.reconnectionSeconds ?? 5;
     this.setState(new EnochianState());
     this.state.phase = "lobby";
@@ -57,12 +68,14 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
       publish(publicSnapshot((await this.store.load(this.matchId))!));
       const moves = new CommandProcessor({ store: this.store, publish });
       this.onMessage('command', async (client, payload: unknown) => {
+        if (this.isReady && !this.isReady()) { client.send('ack', { ok: false, code: 'storage_unavailable', retryable: true }); return; }
         try {
           const actor = await this.lobby!.actorForConnection(this.matchId!, client.sessionId);
           client.send('ack', await moves.execute(actor, payload));
         } catch (error) { const code = safeDomainError(error).message; client.send('ack', { ok: false, code, retryable: code === 'storage_unavailable' }); }
       });
       this.onMessage('lobby_command', async (client, payload: unknown) => {
+        if (this.isReady && !this.isReady()) { client.send('ack', { ok: false, code: 'storage_unavailable', retryable: true }); return; }
         const input = payload as { matchId?: string; requestId?: string; expectedRevision?: number; action?: LobbyAction; protocolVersion?: number; rulesVersion?: string };
         if (!input || typeof input !== 'object' || Array.isArray(input) || Object.getPrototypeOf(input) !== Object.prototype || Object.keys(input).length !== 6 || Object.keys(input).some(key => !['matchId','requestId','expectedRevision','action','protocolVersion','rulesVersion'].includes(key))) { client.send('ack', { ok: false, code: 'invalid_command', retryable: false }); return; }
         if (!input || input.matchId !== this.matchId || input.protocolVersion !== 1 || input.rulesVersion !== 'enochian-current-1') { client.send('ack', { ok: false, code: 'incompatible_version', retryable: false }); return; }
@@ -84,6 +97,7 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
     try { return await this.authenticateClient(options, context); } catch (error) { throw safeDomainError(error); }
   }
   private async authenticateClient(options: unknown, context: AuthContext) {
+    if (this.isReady && !this.isReady()) throw new Error('storage_unavailable');
     if (this.lobby) {
       const credential = (options as { credential?: unknown } | null)?.credential;
       const auth = await this.lobby.authenticate(this.matchId!, credential);
@@ -97,7 +111,8 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
   }
   private async joinClient(client: Client) {
     if (this.lobby) {
-      const connected = await this.lobby.connect(this.matchId!, client.auth.credential, client.sessionId);
+      const connected = this.connections ? await this.connections.connect(this.matchId!, client.auth.credential, client.sessionId)
+        : await this.lobby.connect(this.matchId!, client.auth.credential, client.sessionId);
       client.auth = connected.actor;
       if (connected.snapshot.revision >= this.state.revision) applySnapshot(this.state, connected.snapshot);
       return;
@@ -110,7 +125,7 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
     try { await this.dropClient(client); } catch (error) { throw safeDomainError(error); }
   }
   private async dropClient(client: Client) {
-    if (this.lobby) { await this.onLeave(client); return; }
+    if (this.lobby) { this.droppedSessions.add(client.sessionId); await this.departProduction(client, false); return; }
     // Register the reservation before yielding to the domain delegate.
     const reservation = this.allowReconnection(client, this.reconnectionSeconds);
     this.liveSessions.delete(client.sessionId);
@@ -132,15 +147,22 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
   }
   private async leaveClient(client: Client, code?: number) {
     if (this.lobby) {
-      await this.lobby.depart(this.matchId!, client.sessionId);
-      const record = await this.store!.load(this.matchId!);
-      if (record && record.revision >= this.state.revision) applySnapshot(this.state, publicSnapshot(record));
+      await this.departProduction(client, !this.droppedSessions.delete(client.sessionId));
       return;
     }
     // Idempotent whether intentional, expired, or already counted as dropped.
     this.liveSessions.delete(client.sessionId);
     this.state.connected = this.liveSessions.size;
     await this.delegates.leave?.(client, code);
+  }
+  private async departProduction(client: Client, intentional: boolean) {
+    const handled = await this.connections?.depart(this.matchId!, client.sessionId, intentional);
+    if (!handled) await this.lobby!.depart(this.matchId!, client.sessionId);
+    const record = await this.store!.load(this.matchId!);
+    if (record) this.publishCommitted(publicSnapshot(record));
+  }
+  publishCommitted(snapshot: PublicSnapshot) {
+    if (snapshot.matchId === this.matchId && snapshot.revision >= this.state.revision) applySnapshot(this.state, snapshot);
   }
   async onDispose() { try { await this.delegates.dispose?.(); } catch (error) { throw safeDomainError(error); } }
 }

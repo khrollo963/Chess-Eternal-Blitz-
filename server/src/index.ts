@@ -1,7 +1,7 @@
 import { Server } from "@colyseus/core";
 import { BunWebSockets } from "@colyseus/bun-websockets";
-import { assertRuntime, readConfig, runtimeDiagnostics } from "./config.js";
-import { EnochianRoom, type RoomDelegates } from "./rooms/EnochianRoom.js";
+import { assertRuntime, runtimeDiagnostics } from "./config.js";
+import { EnochianRoom, type RoomDelegates, type ConnectionHooks } from "./rooms/EnochianRoom.js";
 import { canonicalEngine } from "./engine.js";
 import { LobbyService } from './domain/lobby.js';
 import type { LobbyStore, VerifiedAuth } from './storage/LobbyStore.js';
@@ -14,6 +14,8 @@ export function createGameServer(options: {
   store?: LobbyStore;
   verifyAuth?: (authorization: string | undefined) => Promise<VerifiedAuth | undefined>;
   rankedEnabled?: boolean;
+  isReady?: () => boolean;
+  connections?: ConnectionHooks;
 } = {}) {
   assertRuntime();
   const transport = new BunWebSockets({
@@ -24,22 +26,18 @@ export function createGameServer(options: {
   const server = new Server({ transport, gracefullyShutdown: false, greet: false });
   const delegates = options.delegates ?? { authenticate: () => false };
   const lobby = options.store ? new LobbyService({ store: options.store, rankedEnabled: options.rankedEnabled }) : undefined;
-  server.define("enochian", EnochianRoom, { delegates, reconnectionSeconds: options.reconnectionSeconds, lobby, store: options.store });
+  server.define("enochian", EnochianRoom, { delegates, reconnectionSeconds: options.reconnectionSeconds, lobby, store: options.store,
+    isReady: options.isReady, connections: options.connections });
   const app = transport.getExpressApp();
   app.get("/health", (_req, res) => res.json({ status: "ok", ...runtimeDiagnostics() }));
   // Memory-only preflight is not production multiplayer readiness.
-  app.get("/ready", (_req, res) => res.status(503).json({ ready: false, reason: "durable-store-not-configured" }));
-  if (lobby) registerInvitations(app, lobby, options.verifyAuth);
+  app.get("/ready", (_req, res) => options.isReady?.() ? res.json({ ready: true })
+    : res.status(503).json({ ready: false, reason: "durable-store-not-configured-or-recovering" }));
+  if (lobby) registerInvitations(app, lobby, options.verifyAuth, options.isReady);
   return { server, transport, app, engine: canonicalEngine, lobby };
 }
 
 if (import.meta.main) {
-  const config = readConfig();
-  const { server } = createGameServer();
-  await server.listen(config.port, config.hostname);
-  console.info(JSON.stringify({ ...runtimeDiagnostics(), port: config.port, hostname: config.hostname }));
-  let shutdown: Promise<void> | undefined;
-  const close = () => shutdown ??= server.gracefullyShutdown(false);
-  process.once("SIGINT", close);
-  process.once("SIGTERM", close);
+  const { startServer } = await import('./recovery/start-server.js');
+  await startServer(process.env);
 }

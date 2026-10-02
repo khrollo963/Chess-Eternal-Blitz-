@@ -3,10 +3,11 @@ import type { BunWebSockets } from '@colyseus/bun-websockets';
 import type { LobbyService } from '../domain/lobby.js';
 import type { VerifiedAuth } from '../storage/LobbyStore.js';
 import type { Color } from '../domain/match.js';
+import { publicSnapshot } from '../domain/match.js';
 
 type App = ReturnType<BunWebSockets['getExpressApp']>;
 /** Credentials are POST bodies only, never invite URLs or public metadata. */
-export function registerInvitations(app: App, lobby: LobbyService, verifyAuth?: (authorization: string | undefined) => Promise<VerifiedAuth | undefined>) {
+export function registerInvitations(app: App, lobby: LobbyService, verifyAuth?: (authorization: string | undefined) => Promise<VerifiedAuth | undefined>, isReady?: () => boolean) {
   const body = (input: unknown): Record<string, unknown> => {
     if (typeof input !== 'string' || Buffer.byteLength(input) > 2048) throw new Error('invalid_command');
     const parsed = JSON.parse(input);
@@ -20,6 +21,7 @@ export function registerInvitations(app: App, lobby: LobbyService, verifyAuth?: 
   };
   app.post('/invitations', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
+    if (isReady && !isReady()) { res.status(503).json({ code: 'storage_unavailable' }); return; }
     let matchId: string | undefined;
     let room: ReturnType<typeof matchMaker.getLocalRoomById> | undefined;
     try {
@@ -39,6 +41,7 @@ export function registerInvitations(app: App, lobby: LobbyService, verifyAuth?: 
   });
   app.post('/invitations/join', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
+    if (isReady && !isReady()) { res.status(503).json({ code: 'storage_unavailable' }); return; }
     try {
       const data = body(req.body);
       const mapping = await lobby.lookup(data.code as string);
@@ -49,14 +52,17 @@ export function registerInvitations(app: App, lobby: LobbyService, verifyAuth?: 
   });
   app.post('/invitations/recover', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
+    if (isReady && !isReady()) { res.status(503).json({ code: 'storage_unavailable' }); return; }
     try {
       const data = body(req.body);
       const { record } = await lobby.authenticate(data.matchId as string, data.credential);
+      if (record.phase === 'finished' || record.phase === 'void') { res.json({ matchId: record.matchId, snapshot: publicSnapshot(record) }); return; }
       res.json({ matchId: record.matchId, roomId: record.lobby.roomId });
     } catch { res.status(401).json({ code: 'unauthorized' }); }
   });
   app.get('/invitations/:code', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
+    if (isReady && !isReady()) { res.status(503).json({ code: 'storage_unavailable' }); return; }
     try { res.json(await lobby.lookup(req.params.code as string)); } catch { res.status(404).json({ code: 'not_found' }); }
   });
 }
