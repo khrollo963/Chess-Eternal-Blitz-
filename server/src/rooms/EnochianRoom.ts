@@ -5,6 +5,8 @@ import type { LobbyStore } from '../storage/LobbyStore.js';
 import { CommandProcessor } from '../domain/commands.js';
 import type { ActorContext } from '../domain/commands.js';
 import { publicSnapshot, type PublicSnapshot } from '../domain/match.js';
+import { BotScheduler, type BotTimer } from '../domain/bots.js';
+import type { CasualService } from '../domain/CasualService.js';
 
 function safeDomainError(error: unknown): Error {
   const message = error instanceof Error ? error.message : '';
@@ -28,10 +30,14 @@ export interface RoomScaffoldOptions {
   creationPermit?: string;
   isReady?: () => boolean;
   connections?: ConnectionHooks;
+  casual?: CasualService;
+  clock?: () => number;
+  botOptions?: { scheduler?: BotTimer; random?: () => number; maxNodes?: number; delayMs?: number };
 }
 export interface ConnectionHooks {
   connect(matchId: string, credential: unknown, connectionId: string): Promise<{ actor: ActorContext; snapshot: PublicSnapshot }>;
   depart(matchId: string, connectionId: string, intentional: boolean): Promise<boolean>;
+  preflight?(matchId: string): Promise<void>;
 }
 
 // Transport lifecycle adapter, not durable seat ownership or disconnect policy.
@@ -46,6 +52,11 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
   private isReady?: () => boolean;
   private connections?: ConnectionHooks;
   private droppedSessions = new Set<string>();
+  private casual?: CasualService;
+  private bots?: BotScheduler;
+  private maintenance?: ReturnType<typeof setInterval>;
+  private disposed = false;
+  private draining = false;
 
   async onCreate(options: RoomScaffoldOptions) {
     try { await this.createRoom(options); } catch (error) { throw safeDomainError(error); }
@@ -53,6 +64,7 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
   private async createRoom(options: RoomScaffoldOptions) {
     this.delegates = options.delegates;
     this.isReady = options.isReady; this.connections = options.connections;
+    this.casual = options.casual;
     this.reconnectionSeconds = options.reconnectionSeconds ?? 5;
     this.setState(new EnochianState());
     this.state.phase = "lobby";
@@ -66,10 +78,17 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
       await this.setPrivate(true);
       const publish = (snapshot: PublicSnapshot) => { if (snapshot.revision >= this.state.revision) applySnapshot(this.state, snapshot); };
       publish(publicSnapshot((await this.store.load(this.matchId))!));
-      const moves = new CommandProcessor({ store: this.store, publish });
+      const committed = (snapshot: PublicSnapshot) => { publish(snapshot); void this.maintain().catch(() => this.bots?.cancel()); };
+      const moves = new CommandProcessor({ store: this.store, publish: committed, clock: options.clock });
+      this.bots = new BotScheduler({ ...options.botOptions, store: this.store, processor: moves, clock: options.clock,
+        afterJob: () => this.maintain() });
+      this.maintenance = setInterval(() => { void this.maintain().catch(() => this.bots?.cancel()); }, 1000);
+      this.maintenance.unref();
+      await this.maintain();
       this.onMessage('command', async (client, payload: unknown) => {
         if (this.isReady && !this.isReady()) { client.send('ack', { ok: false, code: 'storage_unavailable', retryable: true }); return; }
         try {
+          await this.preflight();
           const actor = await this.lobby!.actorForConnection(this.matchId!, client.sessionId);
           client.send('ack', await moves.execute(actor, payload));
         } catch (error) { const code = safeDomainError(error).message; client.send('ack', { ok: false, code, retryable: code === 'storage_unavailable' }); }
@@ -79,9 +98,12 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
         const input = payload as { matchId?: string; requestId?: string; expectedRevision?: number; action?: LobbyAction; protocolVersion?: number; rulesVersion?: string };
         if (!input || typeof input !== 'object' || Array.isArray(input) || Object.getPrototypeOf(input) !== Object.prototype || Object.keys(input).length !== 6 || Object.keys(input).some(key => !['matchId','requestId','expectedRevision','action','protocolVersion','rulesVersion'].includes(key))) { client.send('ack', { ok: false, code: 'invalid_command', retryable: false }); return; }
         if (!input || input.matchId !== this.matchId || input.protocolVersion !== 1 || input.rulesVersion !== 'enochian-current-1') { client.send('ack', { ok: false, code: 'incompatible_version', retryable: false }); return; }
-        const result = await this.lobby!.command(this.matchId!, client.sessionId, input.requestId!, input.expectedRevision!, input.action!);
-        if (result.ok && result.snapshot) publish(result.snapshot);
-        client.send('ack', result);
+        try {
+          await this.preflight();
+          const result = await this.lobby!.command(this.matchId!, client.sessionId, input.requestId!, input.expectedRevision!, input.action!);
+          if (result.ok && result.snapshot) committed(result.snapshot);
+          client.send('ack', result);
+        } catch (error) { const code = safeDomainError(error).message; client.send('ack', { ok: false, code, retryable: code === 'storage_unavailable' }); }
       });
       return;
     }
@@ -99,8 +121,11 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
   private async authenticateClient(options: unknown, context: AuthContext) {
     if (this.isReady && !this.isReady()) throw new Error('storage_unavailable');
     if (this.lobby) {
+      await this.preflight();
       const credential = (options as { credential?: unknown } | null)?.credential;
       const auth = await this.lobby.authenticate(this.matchId!, credential);
+      if (auth.record.seats[auth.color].controller === 'bot') throw new Error('deadline_expired');
+      if (auth.record.phase === 'finished' || auth.record.phase === 'void') throw new Error('invalid_phase');
       if (auth.owner.connectionId !== null) throw new Error('duplicate_connection');
       return { actorId: auth.ownerId, seat: auth.color, controller: 'human', credential };
     }
@@ -115,6 +140,7 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
         : await this.lobby.connect(this.matchId!, client.auth.credential, client.sessionId);
       client.auth = connected.actor;
       if (connected.snapshot.revision >= this.state.revision) applySnapshot(this.state, connected.snapshot);
+      await this.maintain();
       return;
     }
     await this.delegates.join?.(client);
@@ -156,6 +182,7 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
     await this.delegates.leave?.(client, code);
   }
   private async departProduction(client: Client, intentional: boolean) {
+    if (this.draining) return;
     const handled = await this.connections?.depart(this.matchId!, client.sessionId, intentional);
     if (!handled) await this.lobby!.depart(this.matchId!, client.sessionId);
     const record = await this.store!.load(this.matchId!);
@@ -163,6 +190,22 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
   }
   publishCommitted(snapshot: PublicSnapshot) {
     if (snapshot.matchId === this.matchId && snapshot.revision >= this.state.revision) applySnapshot(this.state, snapshot);
+    void this.maintain().catch(() => this.bots?.cancel());
   }
-  async onDispose() { try { await this.delegates.dispose?.(); } catch (error) { throw safeDomainError(error); } }
+  private async preflight() {
+    await this.connections?.preflight?.(this.matchId!);
+    await this.casual?.expire(this.matchId!);
+  }
+  private async maintain() {
+    if (this.disposed || this.draining || !this.store || !this.matchId || (this.isReady && !this.isReady())) { this.bots?.cancel(); return; }
+    await this.preflight();
+    const record = await this.store.load(this.matchId);
+    if (!record || this.disposed) return;
+    if (record.revision >= this.state.revision) { applySnapshot(this.state, publicSnapshot(record)); this.bots?.schedule(record); }
+  }
+  onBeforeShutdown() { this.draining = true; this.bots?.cancel(); void this.disconnect(); }
+  async onDispose() {
+    this.disposed = true; clearInterval(this.maintenance); this.bots?.dispose();
+    try { await this.delegates.dispose?.(); } catch (error) { throw safeDomainError(error); }
+  }
 }

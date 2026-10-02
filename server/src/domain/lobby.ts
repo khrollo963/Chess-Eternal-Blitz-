@@ -2,6 +2,7 @@ import { COLORS, createMatch, publicSnapshot, type Color, type MatchRecord } fro
 import { opaqueToken, inviteCode, credentialHash, verifyCredential, displayName } from '../identity/guest.js';
 import type { LobbyRecord, LobbyStore, VerifiedAuth } from '../storage/LobbyStore.js';
 import type { CommandResult } from '../storage/MatchStore.js';
+import { initializeBotOwners } from './casual.js';
 
 export interface Invitation { matchId: string; code: string; credential: string }
 export type LobbyAction = { type: 'ready'; ready: boolean } | { type: 'color'; color: Color };
@@ -145,7 +146,7 @@ export class LobbyService {
       if (humans.length >= 2 && humans.every(c => record.seats[c].ready && record.seats[c].connected)) {
         if (record.mode === 'casual') record.phase = 'active';
         else if (this.rankedEnabled && humans.length === 4 && new Set(Object.values(record.lobby.owners).map(o => o.accountId)).size === 4 && Object.values(record.lobby.owners).every(o => o.accountId)) record.phase = 'active';
-        if (record.phase === 'active') record.lobbyDeadline = null;
+        if (record.phase === 'active') { record.lobbyDeadline = null; initializeBotOwners(record); }
       }
       return await this.save(record, ownerId!, requestId, fingerprint, action);
     } catch (error) {

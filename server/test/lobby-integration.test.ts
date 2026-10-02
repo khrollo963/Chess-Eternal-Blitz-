@@ -10,7 +10,7 @@ async function waitFor(predicate: () => boolean) {
 }
 test('private HTTP invitations and real SDK credentials synchronize committed lobby and move revisions', async () => {
   const store = new MemoryLobbyStore();
-  const { server } = createGameServer({ store });
+  const { server } = createGameServer({ store, botOptions: { delayMs: 10000 } });
   const reservation = Bun.serve({ port: 0, hostname: '127.0.0.1', fetch: () => new Response() });
   const port = reservation.port!; reservation.stop(true);
   const endpoint = `http://127.0.0.1:${port}`;

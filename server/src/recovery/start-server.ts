@@ -21,17 +21,20 @@ export async function startServer(env: Record<string, string | undefined>, optio
   app = createGameServer({ store: durable?.store, isReady: () => ready && !!durable?.runtime.healthy,
     connections: durable ? {
       async connect(matchId, credential, connectionId) {
-        const record = await durable.store.load(matchId) as RecoveryRecord | null;
-        if (!record?.recovery && record?.phase !== 'finished' && record?.phase !== 'void') return app!.lobby!.connect(matchId, credential, connectionId);
+        await durable.recovery.expire(matchId);
+        await app!.casual!.expire(matchId);
+        const latest = await durable.store.load(matchId) as RecoveryRecord | null;
+        if (!latest?.recovery && latest?.phase !== 'finished' && latest?.phase !== 'void') return app!.casual!.connect(matchId, credential, connectionId);
         const auth = await app!.lobby!.authenticate(matchId, credential);
         const result = await durable.recovery.recover(matchId, credential, connectionId);
         return { actor: { actorId: auth.ownerId, seat: auth.color, controller: 'human' }, snapshot: result.snapshot! };
       },
-      async depart(matchId, connectionId) {
+      async depart(matchId, connectionId, intentional) {
         // Server draining or a lost lease is infrastructure failure, never intentional Leave.
         if (!ready) return true;
-        return (await durable.recovery.depart(matchId, connectionId)) !== null;
+        return (await durable.recovery.depart(matchId, connectionId)) !== null || await app!.casual!.depart(matchId, connectionId, intentional);
       },
+      async preflight(matchId) { await durable.recovery.expireLobby(matchId); await durable.recovery.expire(matchId); },
     } : undefined,
   });
   function close(): Promise<void> {
