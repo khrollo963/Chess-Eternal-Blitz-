@@ -2,7 +2,7 @@
 
 <h1><a href="https://khrollo963.github.io/Chess-Eternal-Blitz-/">⚔️ Chess Eternal: Four Kings &amp; Golden Dawn — PLAY HERE ⚡</a></h1>
 
-<a href="https://khrollo963.github.io/Chess-Eternal-Blitz-/"><img src="poster.jpg" alt="Chess Eternal arcade poster showing Chaturaji and Enochian Chess side by side" width="920" /></a>
+<a href="https://khrollo963.github.io/Chess-Eternal-Blitz-/"><img src="readme-hero.png" alt="Wide Chess Eternal arcade scene with Chaturaji and Enochian Chess side by side" width="920" /></a>
 
 **Two forgotten chess variants. One pixel-perfect arcade cabinet. Zero dependencies.**
 
