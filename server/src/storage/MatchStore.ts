@@ -1,5 +1,8 @@
 import type { MatchRecord, PublicSnapshot } from '../domain/match.js';
 
+/** Reserved coordinator actor, never populated from HTTP/WebSocket intent. */
+export const SERVICE_RECOVERY_ACTOR = 'service_recovery';
+
 export type CommandCode = 'accepted' | 'invalid_command' | 'incompatible_version' | 'unauthorized' |
   'not_found' | 'request_conflict' | 'stale_revision' | 'invalid_phase' | 'wrong_seat' |
   'out_of_turn' | 'frozen_army' | 'illegal_move' | 'storage_unavailable' | 'command_capacity' | 'deadline_expired' | 'ranked_cooldown' | 'ranked_match_locked' |

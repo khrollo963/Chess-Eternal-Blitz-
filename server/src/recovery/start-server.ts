@@ -11,6 +11,7 @@ import { publicEndpoint, TransportSecurity } from '../http/transport-security.js
 import { registerClientPages } from '../http/client-pages.js';
 import { readLobbyCapacity } from '../storage/lobby-capacity.js';
 import { runGlobalMaintenance } from './global-maintenance.js';
+import { startupDiagnostic, type StartupStage } from './startup-diagnostics.js';
 
 export async function startServer(env: Record<string, string | undefined>, options: { signals?: boolean; storeHooks?: PostgresStoreOptions['hooks'] } = {}) {
   // Validate before durable-runtime errors are converted into unavailable readiness.
@@ -33,13 +34,16 @@ export async function startServer(env: Record<string, string | undefined>, optio
   let ready = false, closing: Promise<void> | undefined;
   let app: ReturnType<typeof createGameServer> | undefined;
   let maintenance: ReturnType<typeof setInterval> | undefined;
-  const durable = await openDurableRuntime(env, () => { ready = false; if (app) void close(); }, options).catch(() => null);
+  const durable = await openDurableRuntime(env, () => { ready = false; if (app) void close(); }, options).catch(error => {
+    console.error(JSON.stringify(startupDiagnostic('durable-runtime', error))); return null;
+  });
   const publish = (record: RecoveryRecord) => {
     if (!record.lobby.roomId) return;
     const room = matchMaker.getLocalRoomById(record.lobby.roomId) as EnochianRoom | undefined;
     room?.publishCommitted(publicSnapshot(record));
   };
-  app = createGameServer({ store: durable?.store, rankedEnabled: config.rankedEnabled, identityConfig: identity, verifyAuth: identity ? createSupabaseIdentity(identity) : undefined,
+  app = createGameServer({ store: durable?.store, rankedEnabled: config.rankedEnabled, signInProviders: config.signInProviders,
+    identityConfig: identity, verifyAuth: identity ? createSupabaseIdentity(identity) : undefined,
     transportSecurity, ingressPolicy: transportSecurity ? 'railway-edge-only' : undefined,
     isReady: () => ready && !!durable?.runtime.healthy,
     connections: durable ? {
@@ -67,18 +71,22 @@ export async function startServer(env: Record<string, string | undefined>, optio
     return closing ??= (async () => {
       ready = false; clearInterval(maintenance);
       process.removeListener('SIGINT', close); process.removeListener('SIGTERM', close);
-      await app?.server.gracefullyShutdown(false);
-      await durable?.close();
+      try { await app?.server.gracefullyShutdown(false); }
+      finally { await durable?.close(); }
     })();
   }
+  let stage: StartupStage = 'client-pages';
   try {
     if (transportSecurity) registerClientPages(app.app, env.MULTIPLAYER_PUBLIC_ENDPOINT!);
+    stage = 'listen';
     await app.server.listen(config.port, config.hostname);
     if (durable) {
+      stage = 'rehydrate';
       await durable.rehydrate(app.lobby!, async (matchId, creationPermit) => {
         const room = await matchMaker.createRoom('enochian', { matchId, creationPermit });
         return room.roomId;
       });
+      stage = 'settlement';
       await durable.settlePending({ drain: true });
       ready = durable.runtime.healthy;
       let busy = false;
@@ -100,10 +108,14 @@ export async function startServer(env: Record<string, string | undefined>, optio
       }, 1000);
       maintenance.unref();
     }
+    stage = 'ready';
     if (options.signals !== false) { process.once('SIGINT', close); process.once('SIGTERM', close); }
     console.info(JSON.stringify({ ...runtimeDiagnostics(), port: config.port, hostname: config.hostname, multiplayerReady: ready }));
     return { ...app, durable, close, isReady: () => ready };
-  } catch {
-    await close(); throw new Error('Multiplayer startup failed');
+  } catch (error) {
+    const diagnostic = startupDiagnostic(stage, error);
+    console.error(JSON.stringify(diagnostic));
+    try { await close(); } catch { /* Preserve the redacted startup failure if cleanup also fails. */ }
+    throw new Error(`Multiplayer startup failed (${diagnostic.stage}:${diagnostic.code})`);
   }
 }

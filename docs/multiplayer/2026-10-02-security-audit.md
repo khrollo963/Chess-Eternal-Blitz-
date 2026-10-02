@@ -129,8 +129,20 @@ Only a real state-key change permits new work. Retryable failures self-schedule
 with backoff of 1, 2, 4, 8, 16, then at most one retry every 30 seconds; they do
 not depend on repeatedly reading unchanged state in room maintenance. No active
 match was deleted or voided. An existing command-cap-bound match remains
-stranded pending an explicit terminal/recovery policy; blocking the runaway
-does not invent additional command capacity or fabricate a final result.
+blocked for ordinary gameplay; blocking the runaway does not invent additional
+gameplay capacity or fabricate a final result.
+
+During the controlled restart, recovery of that capped match was also found to
+fail when `RecoveryCoordinator.claim()` tried to persist its service ownership
+change through the exhausted gameplay ledger. The scoped repair
+reserves only the internal `service_recovery` actor for coordinator maintenance
+at the cap, while ordinary gameplay, bots and exchange/lobby commands remain
+bounded. Actor identity cannot be supplied in command envelopes: humans derive
+their credential-hash owner and bots use server-assigned bot owners. Recovery
+still requires ownership/CAS and does not delete records or synthesize victory.
+Startup failures now report an allowlisted stage/code such as
+`rehydrate:command_capacity`; unknown driver messages, SQL, URLs and causes are
+never included in that diagnostic.
 
 A real regression using the bounded memory store first failed because the
 unchanged rejected revision scheduled a second job. It now executes once and

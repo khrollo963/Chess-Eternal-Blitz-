@@ -1,5 +1,6 @@
 import { COLORS, type MatchRecord } from '../domain/match.js';
 import type { CommitResult, MatchCommit, MatchStore, StoredCommand } from './MatchStore.js';
+import { SERVICE_RECOVERY_ACTOR } from './MatchStore.js';
 
 interface Entry { record: MatchRecord; commands: Map<string, StoredCommand>; events: unknown[] }
 const key = (actorId: string, requestId: string) => JSON.stringify([actorId, requestId]);
@@ -43,7 +44,9 @@ export class MemoryMatchStore implements MatchStore {
     const previous = entry.commands.get(commandKey);
     if (previous) return { status: 'duplicate', command: structuredClone(previous) };
     if (entry.record.revision !== input.expectedRevision) return { status: 'conflict' };
-    if (entry.commands.size >= this.maxCommands) return { status: 'capacity' };
+    // Gameplay remains capped. Trusted recovery must still claim/rebind/expire
+    // preserved matches so one exhausted ledger cannot prevent server startup.
+    if (input.command.actorId !== SERVICE_RECOVERY_ACTOR && entry.commands.size >= this.maxCommands) return { status: 'capacity' };
     if (input.next.matchId !== input.matchId || input.next.revision !== input.expectedRevision + 1) throw new Error('Invalid commit revision');
     // Prepare every clone before mutation: clone failures cannot leave a partial transaction.
     const next = structuredClone(input.next), command = structuredClone(input.command);

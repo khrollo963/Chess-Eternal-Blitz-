@@ -178,4 +178,13 @@ Generated exports are ignored under `dist/`; never edit them as source. Ignored 
 
 Git/network writes required sandbox escalation in this environment. The Windows credential-helper emitted a path warning despite successful pushes; verify the remote result rather than interpreting that warning alone as failure. Do not force-push published history. Preserve unrelated user changes; the earlier `readme-hero.png` deletion was excluded from agent commits, and any upstream user deletion is their own change.
 
-**Next agent:** acknowledge this stop point, verify read-only facts that may have changed, and proceed only with tomorrow's request. There are no unfinished implementation agents to resume.
+**2026-10-02 follow-up:** the user merged PR #2 (`a6b8455`) and explicitly
+requested direct work on `main` from now on. Ranked activation, actionable lobby
+feedback, accessible notifications, lobby capacity and egress fixes are in the
+follow-up. A capped match also prevented startup; trusted recovery now remains
+possible above the gameplay cap. The user chose and enabled GitHub Auth rather
+than SMTP. See [current follow-up](docs/multiplayer/2026-10-02-ranked-notifications.md)
+and [sign-in configuration](docs/multiplayer/signin.md). Final local checks:
+87 client tests, 176 server tests passed, seven hosted cases skipped. Verify
+current Railway revision/readiness and live GitHub handoff separately. Preserve
+the remaining physical-device/platform and operational acceptance gaps.

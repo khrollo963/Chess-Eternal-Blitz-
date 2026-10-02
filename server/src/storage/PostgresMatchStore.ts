@@ -2,6 +2,7 @@ import type { Pool, PoolClient } from 'pg';
 import { COLORS, type MatchRecord } from '../domain/match.js';
 import type { LobbyRecord, LobbyStore, LifecycleDue, MaintenanceHead } from './LobbyStore.js';
 import type { CommitResult, MatchCommit, StoredCommand } from './MatchStore.js';
+import { SERVICE_RECOVERY_ACTOR } from './MatchStore.js';
 import { databaseError, schemaIdentifier, transaction } from './postgres.js';
 import { reconcileRankedAdmission } from './PostgresRankedAdmission.js';
 import { lobbyCapacity, LobbyCapacityError } from './lobby-capacity.js';
@@ -112,7 +113,9 @@ export class PostgresMatchStore implements LobbyStore {
       if (previous.rowCount) return { status: 'duplicate', command: stored(previous.rows[0]) } as const;
       if (locked.rows[0].revision !== input.expectedRevision) return { status: 'conflict' } as const;
       const count = await client.query(`SELECT count(*)::integer AS count FROM ${this.schema}.commands WHERE match_id=$1`, [input.matchId]);
-      if (count.rows[0].count >= this.maxCommands) return { status: 'capacity' } as const;
+      // This reserved actor is emitted only by the internal RecoveryCoordinator.
+      // It preserves recovery at capacity without permitting another game move.
+      if (input.command.actorId !== SERVICE_RECOVERY_ACTOR && count.rows[0].count >= this.maxCommands) return { status: 'capacity' } as const;
       if (input.next.matchId !== input.matchId || input.next.revision !== input.expectedRevision + 1) throw databaseError();
       await reconcileRankedAdmission(client, this.schema, input.next, locked.rows[0].record, (this.options.clock ?? Date.now)());
       const metadata = lobby(input.next);

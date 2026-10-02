@@ -9,7 +9,7 @@ import type { VerifiedAuth } from '../storage/LobbyStore.js';
 
 type App = ReturnType<BunWebSockets['getExpressApp']>;
 export type SignInProvider = 'email' | 'google' | 'github' | 'apple' | 'discord' | 'azure';
-const supported: readonly string[] = ['email', 'google', 'github', 'apple', 'discord', 'azure'];
+export const SUPPORTED_SIGNIN_PROVIDERS: readonly SignInProvider[] = ['email', 'google', 'github', 'apple', 'discord', 'azure'];
 let bundle: string | undefined;
 function sdkBundle(): string {
   if (bundle !== undefined) return bundle;
@@ -90,8 +90,8 @@ export function registerSignIn(app: App, options: {
   clock?: () => number; providers?: readonly SignInProvider[];
 }) {
   const config = options.identityConfig ? readSupabaseIdentityConfig({ SUPABASE_URL: options.identityConfig.url, SUPABASE_PUBLISHABLE_KEY: options.identityConfig.publishableKey }) : undefined;
-  const providers = [...new Set(options.providers ?? ['email'])];
-  if (!providers.length || providers.some(provider => !supported.includes(provider))) throw new Error('identity_configuration_invalid');
+  const providers = [...new Set<SignInProvider>(options.providers ?? ['email'])];
+  if (!providers.length || providers.some(provider => !SUPPORTED_SIGNIN_PROVIDERS.includes(provider))) throw new Error('identity_configuration_invalid');
   const handoffs = config && options.verifyAuth ? new AuthHandoff({ verifyAuth: options.verifyAuth, clock: options.clock }) : undefined;
   const parse = (body: unknown, keys: string[], optional: string[] = []) => {
     if (typeof body !== 'string' || Buffer.byteLength(body) > 1024) throw new HandoffError('unauthorized');

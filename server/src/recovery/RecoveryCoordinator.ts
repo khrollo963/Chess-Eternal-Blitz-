@@ -2,6 +2,7 @@ import { COLORS, publicSnapshot, type Color, type MatchRecord, type Phase } from
 import { opaqueToken, credentialHash, verifyCredential } from '../identity/guest.js';
 import type { LobbyRecord, LobbyStore } from '../storage/LobbyStore.js';
 import type { CommandResult } from '../storage/MatchStore.js';
+import { SERVICE_RECOVERY_ACTOR } from '../storage/MatchStore.js';
 import { invalidateExchange } from '../domain/exchange.js';
 
 export interface RecoveryRecord extends LobbyRecord {
@@ -204,7 +205,7 @@ export class RecoveryCoordinator {
     const requestId = opaqueToken();
     const result: CommandResult = { ok: true, code: 'accepted', retryable: false, requestId, snapshot: publicSnapshot(record) };
     const commit = await this.options.store.commit({ matchId: record.matchId, expectedRevision, next: record, events: [event],
-      command: { actorId: 'service_recovery', requestId, fingerprint: requestId, result, committedAt: this.now() } });
+      command: { actorId: SERVICE_RECOVERY_ACTOR, requestId, fingerprint: requestId, result, committedAt: this.now() } });
     if (commit.status !== 'committed') throw new Error(commit.status === 'capacity' ? 'command_capacity' : 'stale_revision');
     return result;
   }

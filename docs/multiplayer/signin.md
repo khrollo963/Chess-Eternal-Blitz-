@@ -22,6 +22,29 @@ The email template must expose the OTP code for this code-entry flow. The server
 
 ### Follow-up live configuration correction
 
+The user chose GitHub sign-in instead of configuring SMTP. Set
+`MULTIPLAYER_SIGNIN_PROVIDERS=github` for a GitHub-only page (the default remains
+email). The strict comma-separated allowlist accepts only the providers already
+supported by the page and fails invalid configuration before database startup.
+No email is sent in this flow. GitHub OAuth uses the same private PKCE handoff.
+
+GitHub OAuth app homepage:
+`https://game-server-production-5449.up.railway.app/index.html`
+
+GitHub OAuth app callback:
+`https://inxedkdsggcqmeexgyur.supabase.co/auth/v1/callback`
+
+Keep wildcard matching and Device Flow disabled. Put the app Client ID/secret
+directly into the verified project's GitHub provider configuration; do not keep
+the secret in source, screenshots, command logs or chat. The user configured
+the provider; its public settings endpoint subsequently reported GitHub enabled.
+The existing exact production `/signin` redirect must remain allowed. Live
+end-to-end GitHub authorization and handoff verification remain pending.
+
+The email instructions below are an optional alternative, not a launch
+requirement for the selected GitHub flow. Public email delivery requires custom
+SMTP; Supabase's default sender is limited to project-team addresses.
+
 On 2026-10-02 the authorized email check delivered a magic link pointing to `http://localhost:3000` rather than a code. The application already sends `emailRedirectTo: location.origin + '/signin'`; its code entry uses `verifyOtp` with `type: 'email'`. Correct the project's dashboard configuration rather than rewriting a received link or treating the callback authorization code as an email OTP:
 
 1. Verify project `inxedkdsggcqmeexgyur` (Chess-Eternal-Blitz).

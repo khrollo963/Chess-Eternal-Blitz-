@@ -11,7 +11,7 @@ import type { BotTimer } from './domain/bots.js';
 import type { SupabaseIdentityConfig } from './identity/supabase.js';
 import { registerIdentityConfiguration } from './http/identity.js';
 import { RankedService } from './domain/RankedService.js';
-import { registerSignIn } from './http/signin.js';
+import { registerSignIn, type SignInProvider } from './http/signin.js';
 import { SecureBunWebSockets } from './http/SecureBunWebSockets.js';
 import type { TransportSecurity } from './http/transport-security.js';
 
@@ -22,6 +22,7 @@ export function createGameServer(options: {
   store?: LobbyStore;
   verifyAuth?: (authorization: string | undefined) => Promise<VerifiedAuth | undefined>;
   identityConfig?: SupabaseIdentityConfig;
+  signInProviders?: readonly SignInProvider[];
   rankedEnabled?: boolean;
   isReady?: () => boolean;
   connections?: ConnectionHooks;
@@ -68,7 +69,7 @@ export function createGameServer(options: {
     : res.status(503).json({ ready: false, reason: "durable-store-not-configured-or-recovering" }));
   if (lobby) registerInvitations(app, lobby, options.verifyAuth, options.isReady);
   registerIdentityConfiguration(app, options.identityConfig, options.rankedEnabled ?? false);
-  registerSignIn(app, { identityConfig: options.identityConfig, verifyAuth: options.verifyAuth, clock: options.clock });
+  registerSignIn(app, { identityConfig: options.identityConfig, verifyAuth: options.verifyAuth, clock: options.clock, providers: options.signInProviders });
   return { server, transport, app, engine: canonicalEngine, lobby, casual, ranked };
 }
 
