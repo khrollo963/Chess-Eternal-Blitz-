@@ -12,8 +12,35 @@ export function gameSource(version = 'current') {
 
 // Only the DOM, sound and clock are substitutes. Rules, turn flow, reset and
 // menu actions execute the real page. The helper never manufactures legal moves.
-function surface() {
+function mutationRuntime(){
+  const observers = new Set();
+  class MutationObserver {
+    constructor(callback){ this.callback = callback; this.records = []; this.targets = []; observers.add(this); }
+    observe(target,options){ this.targets.push({target,options}); }
+    disconnect(){ this.targets = []; this.records = []; }
+  }
+  return { MutationObserver,
+    attribute(target,attributeName){
+      for(const observer of observers) for(const watched of observer.targets){
+        if(watched.options.attributes && (watched.target === target || watched.options.subtree && watched.target.owner === target.owner) &&
+           (!watched.options.attributeFilter || watched.options.attributeFilter.includes(attributeName))){
+          observer.records.push({type:'attributes',target,attributeName});
+          break;
+        }
+      }
+    },
+    flush(){
+      for(const observer of observers){
+        const records = observer.records.splice(0);
+        if(records.length) observer.callback(records,observer);
+      }
+    },
+    get activeCount(){ return [...observers].filter(o => o.targets.length).length; }
+  };
+}
+function surface(mutations) {
   const elements = new Map();
+  const owner = {};
   const events = new Map();
   const eventTarget = handlers => ({
     addEventListener(type, fn) { if (!handlers.has(type)) handlers.set(type, new Set()); handlers.get(type).add(fn); },
@@ -24,13 +51,13 @@ function surface() {
     if (elements.has(id)) return elements.get(id);
     const classes = new Set();
     const el = {
-      id, dataset: {}, style: {}, children: [], innerHTML: '', textContent: '',
+      id, owner, dataset: {}, children: [], innerHTML: '', textContent: '',
       ...eventTarget(new Map()),
       classList: {
-        add: (...names) => names.forEach(name => classes.add(name)),
-        remove: (...names) => names.forEach(name => classes.delete(name)),
+        add: (...names) => { names.forEach(name => classes.add(name)); mutations.attribute(el,'class'); },
+        remove: (...names) => { names.forEach(name => classes.delete(name)); mutations.attribute(el,'class'); },
         contains: name => classes.has(name),
-        toggle(name, force) { const next = force ?? !classes.has(name); if (next) classes.add(name); else classes.delete(name); return next; },
+        toggle(name, force) { const next = force ?? !classes.has(name); if (next) classes.add(name); else classes.delete(name); mutations.attribute(el,'class'); return next; },
       },
       appendChild(child) { this.children.push(child); },
       setAttribute(name, value) { this[name] = value; },
@@ -38,6 +65,7 @@ function surface() {
       closest(selector) { return selector === '.game-wrapper' ? this.parentElement : null; },
       getClientRects() { return this.style.display === 'none' ? [] : [{}]; },
     };
+    el.style = new Proxy({}, {set(target,name,value){ target[name] = value; mutations.attribute(el,'style'); return true; }});
     elements.set(id, el);
     return el;
   }
@@ -46,6 +74,7 @@ function surface() {
     document: {
       ...eventTarget(events), hidden: false, visibilityState: 'visible',
       baseURI: 'http://localhost:8080/index.html',
+      documentElement: element('document-root'),
       getElementById: element,
       createElement: () => element(`generated-${elements.size}`),
       querySelectorAll: selector => selector === '.game-wrapper' ? [element('chaturaji-wrapper'), element('enochian-wrapper')] : [],
@@ -78,7 +107,8 @@ export function fakeClock() {
 }
 
 export function createHarness({ version = 'current', observeAI = false, launched = false } = {}) {
-  const ui = surface();
+  const mutations = mutationRuntime();
+  const ui = surface(mutations);
   const clock = fakeClock();
   const storage = new Map();
   const scores = [], successors = [];
@@ -88,6 +118,7 @@ export function createHarness({ version = 'current', observeAI = false, launched
     localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) },
     sessionStorage: { getItem: () => null },
     setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout,
+    MutationObserver: mutations.MutationObserver,
     ...ui.windowEvents,
     getComputedStyle: el => ({ display: el.id?.endsWith('-wrapper') && !el.classList.contains('active') ? 'none' : (el.style.display || 'block') }),
     __observeScore: (move, score) => scores.push({ move: { ...move }, score }),
@@ -99,25 +130,22 @@ export function createHarness({ version = 'current', observeAI = false, launched
   const match = html.match(/<script>([\s\S]*?)<\/script>/);
   assert.ok(match, 'Harness: expected the existing inline game script');
   let script = match[1];
-  if (observeAI) {
+  if (observeAI && version === 'original') {
     // Observation only: the candidate, arithmetic and comparison stay intact.
     const anchor = 'if(score > bestScore){ bestScore = score; best = m; }';
     assert.equal(script.split(anchor).length, 2, 'Harness: scoring observation anchor changed; adapt to the real engine API');
     script = script.replace(anchor, `__observeScore(m, score);\n    ${anchor}`);
-    if (version === 'current' && script.includes('// ENOCHIAN_ENGINE_START')) {
-      // The canonical attack probe has explicit state. Observe that actual
-      // candidate state at its call site, preserving every arithmetic operation.
-      const attack = 'if(isSquareAttacked(state, nb, m.tr, m.tc, nonTeam)){';
-      assert.equal(script.split(attack).length, 2, 'Harness: canonical AI candidate observation anchor');
-      script = script.replace(attack, `const attacked = isSquareAttacked(state, nb, m.tr, m.tc, nonTeam);\n    __observeSuccessor(nb, state.alive, attacked);\n    if(attacked){`);
-    }
   }
   run(script);
   run(`Math.random = () => 0;
     renderBoard = () => {}; renderMoveLog = () => {}; updateTurnIndicator = () => {};
     sndClick = sndMove = sndCapture = sndKingCapture = sndPromote = sndWin = sndDraw = () => {};`);
   if (observeAI) {
-    sandbox.__observeSuccessor = (board, alive, attacked) => successors.push({ board: JSON.parse(JSON.stringify(board)), alive: { ...alive }, attacked });
+    sandbox.__observeSuccessor = (board, alive, attacked, state) => successors.push({ board: JSON.parse(JSON.stringify(board)), alive: { ...alive }, attacked, state: state && structuredClone(state) });
+    sandbox.__observeCandidate = ({move,score,state,attacked}) => {
+      sandbox.__observeScore(move,score);
+      sandbox.__observeSuccessor(state.board,state.alive,attacked,state);
+    };
     if (version === 'original' || !script.includes('// ENOCHIAN_ENGINE_START')) run(`const originalAttackProbe = isSquareAttacked;
       isSquareAttacked = function(board, r, c, colors) {
         const attacked = originalAttackProbe(board, r, c, colors);
@@ -127,7 +155,7 @@ export function createHarness({ version = 'current', observeAI = false, launched
   }
   let launcher;
   if (launched) {
-    const outer = surface();
+    const outer = surface(mutations);
     const wrapper = outer.element('enochian-wrapper');
     const frame = outer.element('enochian-frame');
     wrapper.classList.add('active'); frame.parentElement = wrapper;
@@ -139,11 +167,11 @@ export function createHarness({ version = 'current', observeAI = false, launched
     sandbox.parent = parent;
     const launcherScript = readFileSync(resolve(root, 'index.html'), 'utf8').match(/<script>([\s\S]*?)<\/script>/)[1];
     vm.runInContext(launcherScript, parentContext);
-    launcher = { hide: () => parent.globalBackToMenu(), reopen: () => parent.globalSwitchGame('enochian'), wrapper };
+    launcher = { hide: () => { parent.globalBackToMenu(); mutations.flush(); }, reopen: () => { parent.globalSwitchGame('enochian'); mutations.flush(); }, wrapper, document: outer.document };
   }
   run('init()');
   return {
-    run, clock, ui, launcher, scores, successors,
+    run, clock, ui, launcher, scores, successors, mutations,
     snapshot: () => JSON.parse(run('JSON.stringify(game)')),
     setState(board, overrides = {}) {
       sandbox.__fixture = structuredClone({ turnIndex: 0, alive: { R: true, B: true, Y: true, K: true }, selected: null, legalMoves: [], over: false, playerColor: null, difficulty: 'hard', moveCount: 0, moveLog: [], ...overrides, board });
@@ -157,9 +185,12 @@ export function createHarness({ version = 'current', observeAI = false, launched
         return getLegalMoves(fr,fc).map(m => ({fr,fc,tr:m.r,tc:m.c}));
       }))`));
     },
-    choose(color = 'R', difficulty = 'hard') {
+    choose(color = 'R', difficulty = 'hard', options = {}) {
       sandbox.__color = color; sandbox.__difficulty = difficulty;
-      return JSON.parse(run('JSON.stringify(aiSelectMove(__color, __difficulty))'));
+      sandbox.__options = options;
+      return JSON.parse(run(version === 'current'
+        ? 'JSON.stringify(EnochianEngine.chooseAiMove(game,__color,__difficulty,Math.random,{...__options,observe: typeof __observeCandidate === "function" ? __observeCandidate : undefined}))'
+        : 'JSON.stringify(aiSelectMove(__color, __difficulty))'));
     },
   };
 }

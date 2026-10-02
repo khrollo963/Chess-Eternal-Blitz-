@@ -41,6 +41,27 @@ The hidden iframe advanced from Red through Blue to Yellow. Reopening showed
 both accepted moves on the retained board. **Stop lifecycle probe** cleared
 the test jobs and returned to the internal menu.
 
-Task 3 must turn the current-page assertions green while retaining explicit
-historical characterization of the immutable original defects. Task 14 must
-repeat visibility verification against the optional generated srcdoc export.
+Task 3 turns the current-page assertions green while retaining positive
+historical characterization of the immutable original defects. To rerun the
+original failing assertions, set `ENOCHIAN_ORIGINAL_DIAGNOSTIC=1` and run the
+same two test files. That diagnostic intentionally has 14 original-source
+failures; the default regression suite is green. Task 14 must repeat visibility
+verification against the optional generated srcdoc export.
+
+## Task 3 real-browser correction
+
+The same relative-src HTTP probe now reports one pending CPU job after two
+scheduling requests. Returning to the outer menu immediately removes that
+job. After its original deadline, callbacks, moves and turn remain at zero
+while the launcher wrapper is hidden. Reopening the retained iframe schedules
+one fresh job with no immediate move. This uses the actual Enochian-side
+visibility observer and the unchanged launcher.
+
+The fresh chain then executes exactly Red and Blue once each and stops at the
+Yellow human turn (two callbacks, two accepted moves). A second preparation
+followed by the game's internal **Main Menu** cancels its job immediately;
+after the stretched deadline there is no additional callback or move, and the
+actual game area has `display: none`. Starting again queues one fresh job and
+again advances exactly twice to Yellow. The probe's synchronous cancellation
+report can precede the internal menu's final style change, so that visibility
+assertion uses the rendered menu and DOM style rather than the stale report.

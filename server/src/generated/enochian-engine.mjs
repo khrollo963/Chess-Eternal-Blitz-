@@ -1,5 +1,5 @@
 // Generated from the canonical marked block in enochian.html. Do not edit.
-// Source SHA-256: e2a5318993cd7d12258a710940e5bae5b4a3c9156a3f862088a4ea58a4a66354
+// Source SHA-256: 7a707c909cc2890a57bb39607bfa3caaf7927193b07baeb9cdb90ac0b6174364
 // 1. Canonical rules. This closure uses only explicit domain state and RNG.
 // Geometry and historical gaps deliberately match the original executable game.
 const EnochianEngine = (() => {
@@ -22,7 +22,8 @@ function isOnBoard(r, c){
   if(r === 8 && c === 0) return true;
   return false;
 }
-const PIECE_VALUE = { KING: 0, QUEEN: 9, ROOK: 5, BISHOP: 3, KNIGHT: 3, PAWN: 1 };
+const PIECE_VALUE = Object.freeze({ KING: 0, QUEEN: 9, ROOK: 5, BISHOP: 3, KNIGHT: 3, PAWN: 1,
+  PAWN_ROOK: 1, PAWN_QUEEN: 1, PAWN_BISHOP: 1, PAWN_KNIGHT: 1 });
 function isEnemyColor(colorA, colorB){
   return TEAM[colorA] !== TEAM[colorB];
 }
@@ -180,9 +181,24 @@ function teamAlive(state, team){
   return Object.keys(TEAM).some(c => TEAM[c] === team && state.alive[c]);
 }
 
-// 2. AI policy. The original scoring and board-only simulation defects are
-// intentionally retained here until the separately tested AI repair task.
-function chooseAiMove(state, color, difficulty, random = Math.random){
+// 2. Bounded AI policy. King value follows active armies and team survival;
+// safety is a preference, never a new restriction on executable legal moves.
+const AI_POLICY = Object.freeze({
+  easy: Object.freeze({ nodes: 64, risk: 4, noise: 3 }),
+  medium: Object.freeze({ nodes: 128, risk: 6, noise: 2 }),
+  hard: Object.freeze({ nodes: 256, risk: 10, noise: 1 }),
+  grandmaster: Object.freeze({ nodes: 512, risk: 12, noise: 0.4 })
+});
+function pieceValue(type){ return PIECE_VALUE[type] ?? 0; }
+function armyValue(state, color){
+  return Object.values(state.board).reduce((sum,p) => sum + (p.color === color ? pieceValue(p.type) : 0), 0);
+}
+function teamValue(state, team){
+  // A living king keeps its entire army usable, including a bare king's team.
+  return Object.keys(TEAM).reduce((sum,c) => sum + (TEAM[c] === team && state.alive[c] ? 50 + armyValue(state,c) : 0), 0);
+}
+function chooseAiMove(state, color, difficulty, random = Math.random, options = {}){
+  if(state.over || !state.alive[color]) return null;
   const board = state.board;
   const allMoves = [];
   for(const k in board){
@@ -194,29 +210,47 @@ function chooseAiMove(state, color, difficulty, random = Math.random){
     }
   }
   if(allMoves.length === 0) return null;
+  // Examine king captures before quiet candidates so even the smallest normal
+  // difficulty budget sees an available immediate win or army freeze.
+  allMoves.sort((a,b) => Number(board[key(b.tr,b.tc)]?.type === 'KING') - Number(board[key(a.tr,a.tc)]?.type === 'KING'));
 
-  const nonTeam = new Set(Object.keys(TEAM).filter(c => c !== color && TEAM[c] !== TEAM[color] && state.alive[c]));
-  const riskMultiplier = difficulty === 'medium' ? 6 : 10;
-
-  let best = null, bestScore = -Infinity;
+  const policy = AI_POLICY[difficulty] || AI_POLICY.easy;
+  const budget = Number.isFinite(options.maxNodes) ? Math.max(0, Math.min(policy.nodes, Math.floor(options.maxNodes))) : policy.nodes;
+  const team = TEAM[color], otherTeam = team === 1 ? 2 : 1;
+  const baseline = teamValue(state,team) - teamValue(state,otherTeam);
+  // Explicit actor turn lets server callers evaluate a seat without mutating
+  // live turn state. All hypothetical effects still use the canonical transition.
+  const actingState = { ...state, turnIndex: TURN_ORDER.indexOf(color) };
+  let best = allMoves[0], bestScore = -Infinity, nodes = 0;
   for(const m of allMoves){
-    const target = board[key(m.tr, m.tc)];
-    let score = target ? PIECE_VALUE[target.type] * 10 : 0;
-
-    const nb = cloneBoard(board);
-    const mover = nb[key(m.fr, m.fc)];
-    delete nb[key(m.fr, m.fc)];
-    nb[key(m.tr, m.tc)] = mover;
-
-    if(isSquareAttacked(state, nb, m.tr, m.tc, nonTeam)){
-      score -= PIECE_VALUE[mover.type] * riskMultiplier;
+    if(nodes++ >= budget) break; // Legal fallback survives even a zero budget.
+    const next = applyMove(actingState,m).state;
+    const nonTeam = new Set(Object.keys(TEAM).filter(c => TEAM[c] !== team && next.alive[c]));
+    const mover = next.board[key(m.tr,m.tc)];
+    const attacked = isSquareAttacked(next,next.board,m.tr,m.tc,nonTeam);
+    let score = (teamValue(next,team) - teamValue(next,otherTeam) - baseline) * 10;
+    const result = outcome(next);
+    if(result) score = result.winningTeam === team ? 1000000 : -1000000;
+    else {
+      if(attacked) score -= pieceValue(mover.type) * policy.risk;
+      for(const [square,p] of Object.entries(next.board)){
+        if(p.type !== 'KING' || TEAM[p.color] !== team || !next.alive[p.color]) continue;
+        const [r,c] = square.split(',').map(Number);
+        if(isSquareAttacked(next,next.board,r,c,nonTeam)){
+          // Capturing this king freezes this army; losing the final allied
+          // king ends the team. Both consequences outweigh ordinary material.
+          const lastKing = !Object.keys(TEAM).some(c => c !== p.color && TEAM[c] === team && next.alive[c]);
+          score -= lastKing ? 100000 : (50 + armyValue(next,p.color)) * policy.risk;
+        }
+      }
     }
 
     if(difficulty === 'hard' || difficulty === 'grandmaster'){
       score += (4 - (Math.abs(m.tr - 3.5) + Math.abs(m.tc - 3.5)) / 2) * 0.3;
     }
 
-    score += random() * (difficulty === 'grandmaster' ? 0.4 : (difficulty === 'hard' ? 1 : 3));
+    score += random() * policy.noise;
+    if(options.observe) options.observe({ move: m, score, state: next, attacked });
 
     if(score > bestScore){ bestScore = score; best = m; }
   }

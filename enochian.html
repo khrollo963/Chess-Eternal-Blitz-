@@ -749,7 +749,8 @@ function isOnBoard(r, c){
   if(r === 8 && c === 0) return true;
   return false;
 }
-const PIECE_VALUE = { KING: 0, QUEEN: 9, ROOK: 5, BISHOP: 3, KNIGHT: 3, PAWN: 1 };
+const PIECE_VALUE = Object.freeze({ KING: 0, QUEEN: 9, ROOK: 5, BISHOP: 3, KNIGHT: 3, PAWN: 1,
+  PAWN_ROOK: 1, PAWN_QUEEN: 1, PAWN_BISHOP: 1, PAWN_KNIGHT: 1 });
 function isEnemyColor(colorA, colorB){
   return TEAM[colorA] !== TEAM[colorB];
 }
@@ -907,9 +908,24 @@ function teamAlive(state, team){
   return Object.keys(TEAM).some(c => TEAM[c] === team && state.alive[c]);
 }
 
-// 2. AI policy. The original scoring and board-only simulation defects are
-// intentionally retained here until the separately tested AI repair task.
-function chooseAiMove(state, color, difficulty, random = Math.random){
+// 2. Bounded AI policy. King value follows active armies and team survival;
+// safety is a preference, never a new restriction on executable legal moves.
+const AI_POLICY = Object.freeze({
+  easy: Object.freeze({ nodes: 64, risk: 4, noise: 3 }),
+  medium: Object.freeze({ nodes: 128, risk: 6, noise: 2 }),
+  hard: Object.freeze({ nodes: 256, risk: 10, noise: 1 }),
+  grandmaster: Object.freeze({ nodes: 512, risk: 12, noise: 0.4 })
+});
+function pieceValue(type){ return PIECE_VALUE[type] ?? 0; }
+function armyValue(state, color){
+  return Object.values(state.board).reduce((sum,p) => sum + (p.color === color ? pieceValue(p.type) : 0), 0);
+}
+function teamValue(state, team){
+  // A living king keeps its entire army usable, including a bare king's team.
+  return Object.keys(TEAM).reduce((sum,c) => sum + (TEAM[c] === team && state.alive[c] ? 50 + armyValue(state,c) : 0), 0);
+}
+function chooseAiMove(state, color, difficulty, random = Math.random, options = {}){
+  if(state.over || !state.alive[color]) return null;
   const board = state.board;
   const allMoves = [];
   for(const k in board){
@@ -921,29 +937,47 @@ function chooseAiMove(state, color, difficulty, random = Math.random){
     }
   }
   if(allMoves.length === 0) return null;
+  // Examine king captures before quiet candidates so even the smallest normal
+  // difficulty budget sees an available immediate win or army freeze.
+  allMoves.sort((a,b) => Number(board[key(b.tr,b.tc)]?.type === 'KING') - Number(board[key(a.tr,a.tc)]?.type === 'KING'));
 
-  const nonTeam = new Set(Object.keys(TEAM).filter(c => c !== color && TEAM[c] !== TEAM[color] && state.alive[c]));
-  const riskMultiplier = difficulty === 'medium' ? 6 : 10;
-
-  let best = null, bestScore = -Infinity;
+  const policy = AI_POLICY[difficulty] || AI_POLICY.easy;
+  const budget = Number.isFinite(options.maxNodes) ? Math.max(0, Math.min(policy.nodes, Math.floor(options.maxNodes))) : policy.nodes;
+  const team = TEAM[color], otherTeam = team === 1 ? 2 : 1;
+  const baseline = teamValue(state,team) - teamValue(state,otherTeam);
+  // Explicit actor turn lets server callers evaluate a seat without mutating
+  // live turn state. All hypothetical effects still use the canonical transition.
+  const actingState = { ...state, turnIndex: TURN_ORDER.indexOf(color) };
+  let best = allMoves[0], bestScore = -Infinity, nodes = 0;
   for(const m of allMoves){
-    const target = board[key(m.tr, m.tc)];
-    let score = target ? PIECE_VALUE[target.type] * 10 : 0;
-
-    const nb = cloneBoard(board);
-    const mover = nb[key(m.fr, m.fc)];
-    delete nb[key(m.fr, m.fc)];
-    nb[key(m.tr, m.tc)] = mover;
-
-    if(isSquareAttacked(state, nb, m.tr, m.tc, nonTeam)){
-      score -= PIECE_VALUE[mover.type] * riskMultiplier;
+    if(nodes++ >= budget) break; // Legal fallback survives even a zero budget.
+    const next = applyMove(actingState,m).state;
+    const nonTeam = new Set(Object.keys(TEAM).filter(c => TEAM[c] !== team && next.alive[c]));
+    const mover = next.board[key(m.tr,m.tc)];
+    const attacked = isSquareAttacked(next,next.board,m.tr,m.tc,nonTeam);
+    let score = (teamValue(next,team) - teamValue(next,otherTeam) - baseline) * 10;
+    const result = outcome(next);
+    if(result) score = result.winningTeam === team ? 1000000 : -1000000;
+    else {
+      if(attacked) score -= pieceValue(mover.type) * policy.risk;
+      for(const [square,p] of Object.entries(next.board)){
+        if(p.type !== 'KING' || TEAM[p.color] !== team || !next.alive[p.color]) continue;
+        const [r,c] = square.split(',').map(Number);
+        if(isSquareAttacked(next,next.board,r,c,nonTeam)){
+          // Capturing this king freezes this army; losing the final allied
+          // king ends the team. Both consequences outweigh ordinary material.
+          const lastKing = !Object.keys(TEAM).some(c => c !== p.color && TEAM[c] === team && next.alive[c]);
+          score -= lastKing ? 100000 : (50 + armyValue(next,p.color)) * policy.risk;
+        }
+      }
     }
 
     if(difficulty === 'hard' || difficulty === 'grandmaster'){
       score += (4 - (Math.abs(m.tr - 3.5) + Math.abs(m.tc - 3.5)) / 2) * 0.3;
     }
 
-    score += random() * (difficulty === 'grandmaster' ? 0.4 : (difficulty === 'hard' ? 1 : 3));
+    score += random() * policy.noise;
+    if(options.observe) options.observe({ move: m, score, state: next, attacked });
 
     if(score > bestScore){ bestScore = score; best = m; }
   }
@@ -1202,27 +1236,93 @@ function sndWin(){ [523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,0.18,
 function sndPromote(){ [392,523,659,880].forEach((f,i)=>setTimeout(()=>beep(f,0.11,'triangle',0.07), i*80)); }
 function sndDraw(){ [440,440].forEach((f,i)=>setTimeout(()=>beep(f,0.2,'triangle',0.05), i*220)); }
 
-// 5. Local CPU scheduling (lifecycle repair follows in Task 3).
+// 5. Local CPU lifecycle: one owner, one cancelable job, no obsolete commits.
 
 function isColorCpu(color){
   return game.playerColor !== null && color !== game.playerColor;
 }
 
 let speedMode = false;
+const localCpu = (() => {
+  let generation = 0, revision = 0, active = false, job = null;
+  let observer = null, parentDocument = null, lastVisible = false, disposed = false;
+  function cancel(){
+    if(job) clearTimeout(job.timer);
+    job = null;
+  }
+  function visible(){
+    if(disposed || !active || document.hidden || document.getElementById('gamePlayArea').style.display === 'none') return false;
+    try {
+      const frame = window.frameElement;
+      if(frame){
+        if(window.parent.document.hidden) return false;
+        for(let el = frame; el; el = el.parentElement){
+          const style = window.parent.getComputedStyle(el);
+          if(el.hidden || style.display === 'none' || style.visibility === 'hidden') return false;
+        }
+      }
+    } catch(e){ /* Cross-origin embeds still honor their own document visibility. */ }
+    return true;
+  }
+  function config(){ return [game.playerColor,game.difficulty,speedMode].join('|'); }
+  function schedule(){
+    if(job || !visible() || game.over || !isColorCpu(currentColor())) return;
+    const token = { generation, revision, color: currentColor(), config: config(), moveCount: game.moveCount };
+    job = token;
+    token.timer = setTimeout(() => {
+      if(job !== token) return;
+      job = null;
+      if(token.generation !== generation || token.revision !== revision || token.moveCount !== game.moveCount ||
+         token.config !== config() || !visible() || game.over || currentColor() !== token.color || !isColorCpu(token.color)) return;
+      const move = aiSelectMove(token.color,game.difficulty);
+      if(move && getLegalMoves(move.fr,move.fc).some(m => m.r === move.tr && m.c === move.tc)) makeMove(move.fr,move.fc,move.tr,move.tc);
+      else advanceAndContinue();
+    }, speedMode ? 200 : 1400);
+  }
+  function visibilityChanged(){
+    const now = visible();
+    if(!now) cancel();
+    else if(!lastVisible) schedule();
+    lastVisible = now;
+  }
+  function teardown(){
+    disposed = true;
+    cancel();
+    observer?.disconnect(); observer = null;
+    document.removeEventListener('visibilitychange',visibilityChanged);
+    parentDocument?.removeEventListener('visibilitychange',visibilityChanged);
+    parentDocument = null;
+  }
+  function observe(){
+    teardown(); disposed = false;
+    document.addEventListener('visibilitychange',visibilityChanged);
+    try {
+      if(window.frameElement){
+        parentDocument = window.parent.document;
+        parentDocument.addEventListener('visibilitychange',visibilityChanged);
+        observer = new MutationObserver(visibilityChanged);
+        observer.observe(parentDocument.documentElement,{ attributes: true, subtree: true, attributeFilter: ['class','style','hidden'] });
+      }
+    } catch(e){ /* Standalone and cross-origin platform frames need no parent access. */ }
+    lastVisible = false;
+    visibilityChanged();
+  }
+  window.addEventListener('pagehide',teardown);
+  window.addEventListener('pageshow',observe);
+  return Object.freeze({ schedule, observe, cancel,
+    reset(){ cancel(); generation++; revision = 0; active = true; },
+    menu(){ cancel(); active = false; lastVisible = false; },
+    changed(){ cancel(); revision++; },
+    configured(){ cancel(); schedule(); }
+  });
+})();
 
 function maybeRunCpuTurn(){
-  if(game.over) return;
-  const color = currentColor();
-  if(!isColorCpu(color)) return;
-  setTimeout(()=>{
-    if(game.over || currentColor() !== color) return;
-    const move = aiSelectMove(color, game.difficulty);
-    if(move) makeMove(move.fr, move.fc, move.tr, move.tc);
-    else advanceAndContinue();
-  }, speedMode ? 200 : 1400);
+  localCpu.schedule();
 }
 
 function advanceAndContinue(){
+  localCpu.changed();
   advanceTurn();
   renderBoard();
   updateTurnIndicator();
@@ -1298,6 +1398,7 @@ function checkWin(){
   const result = EnochianEngine.outcome(game);
   if(result){
     game.over = true;
+    localCpu.cancel();
     const winningTeam = result.winningTeam;
     const winnerLabel = winningTeam === 1 ? '🌍 Team Sulphur' : '🧂 Team Salt';
     setStatus('🏆 ' + winnerLabel + ' win! Both enemy kings have fallen.', true);
@@ -1394,6 +1495,7 @@ function makeMove(fr, fc, tr, tc){
   let kingCaptured = false;
 
   const transition = EnochianEngine.applyMove(game, {fr,fc,tr,tc});
+  localCpu.changed();
   const {board,alive,turnIndex,over,moveCount} = transition.state;
   Object.assign(game, {board,alive,turnIndex,over,moveCount});
 
@@ -1499,6 +1601,7 @@ function onBoardClick(e){
 }
 
 function resetGame(){
+  localCpu.reset();
   Object.assign(game, EnochianEngine.initialState());
   game.moveLog = [];
   speedMode = false;
@@ -1519,6 +1622,7 @@ function startGame(){
 }
 
 function backToMainMenu(){
+  localCpu.menu();
   hideGameOverOverlay();
   hidePieceTooltip();
   document.getElementById('gamePlayArea').style.display = 'none';
@@ -1545,6 +1649,7 @@ function wireColorPicker(){
     const btn = e.target.closest('.color-pick-btn');
     if(!btn) return;
     game.playerColor = (game.playerColor === btn.dataset.color) ? null : btn.dataset.color;
+    localCpu.configured();
     updateColorPickerUI();
   });
 }
@@ -1554,6 +1659,7 @@ function wireDifficultyPicker(){
     const btn = e.target.closest('.choice-btn');
     if(!btn) return;
     game.difficulty = btn.dataset.diff;
+    localCpu.configured();
     document.querySelectorAll('#difficultyPicker .choice-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
   });
@@ -1581,6 +1687,7 @@ function init(){
   if(speedToggleBtn) speedToggleBtn.addEventListener('click', () => {
     initAudio(); sndClick();
     speedMode = !speedMode;
+    localCpu.configured();
     updateTurnIndicator();
   });
 
@@ -1607,6 +1714,7 @@ function init(){
   // Start with menu visible
   document.getElementById('startMenu').style.display = 'block';
   document.getElementById('gamePlayArea').style.display = 'none';
+  localCpu.observe();
 }
 
 document.addEventListener('DOMContentLoaded', init);
