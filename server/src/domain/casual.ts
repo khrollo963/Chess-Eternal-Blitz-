@@ -1,4 +1,5 @@
 import { COLORS, type Color, type MatchRecord } from './match.js';
+import { invalidateExchange } from './exchange.js';
 
 export const CASUAL_ABSENCE_MS = 180000;
 export interface Absence { usedMs: number; departedAt: number | null }
@@ -18,6 +19,7 @@ export function departCasual(record: CasualRecord, color: Color, now: number, in
   const seat = record.seats[color];
   if (record.mode !== 'casual' || record.phase !== 'active' || terminal(record) || seat.controller !== 'human' || !seat.ownerId || !seat.connected) return false;
   const entry = ledger(record, color);
+  invalidateExchange(record, 'control_change');
   seat.connected = false;
   if (intentional || entry.usedMs >= CASUAL_ABSENCE_MS) {
     entry.usedMs = CASUAL_ABSENCE_MS; entry.departedAt = null; seat.controller = 'bot'; seat.disconnectDeadline = null;
@@ -32,6 +34,7 @@ export function expireCasual(record: CasualRecord, now: number): Color[] {
     const seat = record.seats[color];
     if (seat.controller !== 'temporary_bot' || seat.disconnectDeadline === null || now < seat.disconnectDeadline) return false;
     settleAbsence(record, color, now); ledger(record, color).usedMs = CASUAL_ABSENCE_MS;
+    invalidateExchange(record, 'control_change');
     seat.controller = 'bot'; seat.disconnectDeadline = null; return true;
   });
 }
@@ -43,14 +46,17 @@ export function reclaimCasual(record: CasualRecord, color: Color, ownerId: strin
   expireCasual(record, now);
   if (seat.controller === 'bot') return 'expired';
   if (seat.controller !== 'temporary_bot' || seat.disconnectDeadline === null || now >= seat.disconnectDeadline) return 'unauthorized';
+  invalidateExchange(record, 'control_change');
   settleAbsence(record, color, now); seat.controller = 'human'; seat.connected = true; seat.disconnectDeadline = null;
   return 'reclaimed';
 }
 export function freezeAbsence(record: CasualRecord, cutoff: number): void {
   if (record.mode !== 'casual') return;
+  invalidateExchange(record, 'pause');
   for (const color of COLORS) if (record.absence?.[color]) settleAbsence(record, color, cutoff);
 }
 export function returnedOwner(record: CasualRecord, color: Color): void {
+  invalidateExchange(record, 'control_change');
   if (record.mode === 'casual') ledger(record, color).departedAt = null;
 }
 /** Internal identities have no public credential and are never accepted from clients. */
@@ -58,6 +64,8 @@ export function initializeBotOwners(record: MatchRecord): void {
   if (record.mode !== 'casual') return;
   for (const color of COLORS) {
     const seat = record.seats[color];
-    if (seat.controller === 'bot' && !seat.ownerId) seat.ownerId = `server-bot:${record.matchId}:${color}`;
+    if (seat.controller === 'bot' && !seat.ownerId) {
+      invalidateExchange(record, 'control_change'); seat.ownerId = `server-bot:${record.matchId}:${color}`;
+    }
   }
 }

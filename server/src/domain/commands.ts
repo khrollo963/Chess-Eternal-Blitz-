@@ -1,5 +1,6 @@
 import { canonicalEngine, COLORS, PROTOCOL_VERSION, RULES_VERSION, publicSnapshot, type Color, type Controller, type Move, type PublicSnapshot, type RulesEngine } from './match.js';
 import type { CommandCode, CommandResult, MatchStore } from '../storage/MatchStore.js';
+import { invalidateExchange, recordKingCaptures } from './exchange.js';
 
 export interface CommandEnvelope {
   requestId: string; matchId: string; expectedRevision: number;
@@ -77,6 +78,8 @@ export class CommandProcessor {
       const successor = this.engine.applyMove(structuredClone(record.engine), move);
       const next = structuredClone(record);
       next.engine = successor.state; next.revision++;
+      invalidateExchange(next, 'move');
+      recordKingCaptures(next, successor.events);
       const outcome = this.engine.outcome(next.engine);
       if (outcome) { next.phase = 'finished'; next.terminalResult = { kind: 'victory', winningTeam: outcome.winningTeam, reason: null }; }
       snapshot = publicSnapshot(next);

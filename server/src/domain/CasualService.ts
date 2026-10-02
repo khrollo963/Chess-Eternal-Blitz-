@@ -3,6 +3,7 @@ import { departCasual, expireCasual, reclaimCasual, type CasualRecord } from './
 import type { LobbyService } from './lobby.js';
 import type { LobbyRecord, LobbyStore } from '../storage/LobbyStore.js';
 import { opaqueToken } from '../identity/guest.js';
+import { invalidateExchange } from './exchange.js';
 
 type Record = LobbyRecord & CasualRecord;
 /** All lifecycle changes use the same revision fence as canonical moves. */
@@ -50,6 +51,7 @@ export class CasualService {
     throw new Error('storage_unavailable');
   }
   private async save(record: Record, event: string): Promise<boolean> {
+    invalidateExchange(record, 'control_change');
     const expectedRevision = record.revision; record.revision++;
     const requestId = opaqueToken(), snapshot = publicSnapshot(record);
     const result = await this.options.store.commit({ matchId: record.matchId, expectedRevision, next: record, events: [{ type: event }],

@@ -2,6 +2,7 @@ import { COLORS, publicSnapshot, type Color, type MatchRecord, type Phase } from
 import { opaqueToken, credentialHash, verifyCredential } from '../identity/guest.js';
 import type { LobbyRecord, LobbyStore } from '../storage/LobbyStore.js';
 import type { CommandResult } from '../storage/MatchStore.js';
+import { invalidateExchange } from '../domain/exchange.js';
 
 export interface RecoveryRecord extends LobbyRecord {
   absence?: Partial<Record<Color, { usedMs: number; departedAt: number | null }>>;
@@ -183,6 +184,7 @@ export class RecoveryCoordinator {
   }
   private async save(record: RecoveryRecord, event: unknown): Promise<CommandResult> {
     if (record.service?.instanceId !== this.options.instanceId) throw new Error('obsolete_service_instance');
+    invalidateExchange(record, record.phase === 'finished' || record.phase === 'void' ? 'end' : record.phase === 'paused' ? 'pause' : 'control_change');
     const expectedRevision = record.revision; record.revision++;
     const requestId = opaqueToken();
     const result: CommandResult = { ok: true, code: 'accepted', retryable: false, requestId, snapshot: publicSnapshot(record) };

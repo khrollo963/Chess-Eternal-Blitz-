@@ -7,6 +7,7 @@ import type { ActorContext } from '../domain/commands.js';
 import { publicSnapshot, type PublicSnapshot } from '../domain/match.js';
 import { BotScheduler, type BotTimer } from '../domain/bots.js';
 import type { CasualService } from '../domain/CasualService.js';
+import { ExchangeService, parseExchangeCommand } from '../domain/ExchangeService.js';
 
 function safeDomainError(error: unknown): Error {
   const message = error instanceof Error ? error.message : '';
@@ -54,6 +55,7 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
   private droppedSessions = new Set<string>();
   private casual?: CasualService;
   private bots?: BotScheduler;
+  private exchange?: ExchangeService;
   private maintenance?: ReturnType<typeof setInterval>;
   private disposed = false;
   private draining = false;
@@ -80,6 +82,7 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
       publish(publicSnapshot((await this.store.load(this.matchId))!));
       const committed = (snapshot: PublicSnapshot) => { publish(snapshot); void this.maintain().catch(() => this.bots?.cancel()); };
       const moves = new CommandProcessor({ store: this.store, publish: committed, clock: options.clock });
+      this.exchange = new ExchangeService({ store: this.store, publish: committed, clock: options.clock });
       this.bots = new BotScheduler({ ...options.botOptions, store: this.store, processor: moves, clock: options.clock,
         afterJob: () => this.maintain() });
       this.maintenance = setInterval(() => { void this.maintain().catch(() => this.bots?.cancel()); }, 1000);
@@ -103,6 +106,17 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
           const result = await this.lobby!.command(this.matchId!, client.sessionId, input.requestId!, input.expectedRevision!, input.action!);
           if (result.ok && result.snapshot) committed(result.snapshot);
           client.send('ack', result);
+        } catch (error) { const code = safeDomainError(error).message; client.send('ack', { ok: false, code, retryable: code === 'storage_unavailable' }); }
+      });
+      this.onMessage('exchange_command', async (client, payload: unknown) => {
+        if (this.isReady && !this.isReady()) { client.send('ack', { ok: false, code: 'storage_unavailable', retryable: true }); return; }
+        const parsed = parseExchangeCommand(payload);
+        if (!parsed.ok) { client.send('ack', parsed.result); return; }
+        if (parsed.command.matchId !== this.matchId) { client.send('ack', { ok: false, code: 'unauthorized', retryable: false, requestId: parsed.command.requestId }); return; }
+        try {
+          await this.preflight();
+          const actor = await this.lobby!.actorForConnection(this.matchId!, client.sessionId);
+          client.send('ack', await this.exchange!.execute(actor, parsed.command));
         } catch (error) { const code = safeDomainError(error).message; client.send('ack', { ok: false, code, retryable: code === 'storage_unavailable' }); }
       });
       return;
@@ -195,6 +209,7 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
   private async preflight() {
     await this.connections?.preflight?.(this.matchId!);
     await this.casual?.expire(this.matchId!);
+    await this.exchange?.expire(this.matchId!);
   }
   private async maintain() {
     if (this.disposed || this.draining || !this.store || !this.matchId || (this.isReady && !this.isReady())) { this.bots?.cancel(); return; }

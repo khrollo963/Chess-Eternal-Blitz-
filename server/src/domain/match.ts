@@ -1,4 +1,5 @@
 import { EnochianEngine } from '../generated/enochian-engine.mjs';
+import { publicExchange, publicExchangeAvailable, type PublicExchangeOffer, type Prisoner, type ExchangeOffer } from './exchange.js';
 
 export const PROTOCOL_VERSION = 1;
 export const RULES_VERSION = 'enochian-current-1';
@@ -17,6 +18,8 @@ export interface Seat {
 }
 export interface TerminalResult { kind: 'victory' | 'void'; winningTeam: number | null; reason: string | null }
 export interface MatchRecord {
+  /** Private application metadata, persisted in full JSON and never spread into public state. */
+  prisoners?: Partial<Record<Color, Prisoner>>; exchangeOffer?: ExchangeOffer | null;
   matchId: string; protocolVersion: number; rulesVersion: string; revision: number;
   mode: 'casual' | 'ranked'; phase: Phase; engine: EngineState;
   seats: Record<Color, Seat>; lobbyDeadline: number | null; recoveryDeadline: number | null;
@@ -25,6 +28,8 @@ export interface MatchRecord {
   retainUntil: number | null;
 }
 export interface PublicSnapshot {
+  exchangeOffer: PublicExchangeOffer | null;
+  exchangeAvailable: Partial<Record<Color, Color>>;
   matchId: string; protocolVersion: number; rulesVersion: string; revision: number;
   mode: 'casual' | 'ranked'; phase: Phase; board: Record<string, Piece>;
   alive: Record<Color, boolean>; turn: Color; moveCount: number;
@@ -66,5 +71,7 @@ export function publicSnapshot(record: MatchRecord): PublicSnapshot {
     turn: COLORS[record.engine.turnIndex]!, moveCount: record.engine.moveCount, seats,
     lobbyDeadline: record.lobbyDeadline, recoveryDeadline: record.recoveryDeadline,
     terminalResult: result ? { kind: result.kind, winningTeam: result.winningTeam, reason: result.reason } : null,
+    exchangeOffer: publicExchange(record),
+    exchangeAvailable: publicExchangeAvailable(record),
   };
 }

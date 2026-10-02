@@ -3,7 +3,7 @@ import type { PublicSnapshot } from '../domain/match.js';
 
 const PublicPiece = schema({ color: t.string(), type: t.string() }, 'PublicPiece');
 const PublicArmy = schema({ alive: t.boolean() }, 'PublicArmy');
-const PublicSeat = schema({ color: t.string(), displayName: t.string(), controller: t.string(), connected: t.boolean(), ready: t.boolean(), disconnectDeadline: t.number() }, 'PublicSeat');
+const PublicSeat = schema({ color: t.string(), displayName: t.string(), controller: t.string(), connected: t.boolean(), ready: t.boolean(), disconnectDeadline: t.number(), exchangeCounterpart: t.string() }, 'PublicSeat');
 
 // Only public committed fields belong in Schema. Domain state arrives in Task 5.
 export const EnochianState = schema({
@@ -15,6 +15,9 @@ export const EnochianState = schema({
   board: t.map(PublicPiece), seats: t.map(PublicSeat), alive: t.map(PublicArmy),
   turn: t.string(), moveCount: t.number(), lobbyDeadline: t.number(), recoveryDeadline: t.number(),
   terminalKind: t.string(), winningTeam: t.number(), terminalReason: t.string(),
+  exchangeId: t.string(), exchangeProposer: t.string(), exchangeCounterpart: t.string(),
+  exchangeGuardRevision: t.number(), exchangeExpiresAt: t.number(),
+  exchangePrisonerFirst: t.string(), exchangePrisonerSecond: t.string(),
 }, "EnochianState");
 export type PublicState = InstanceType<typeof EnochianState>;
 
@@ -26,8 +29,12 @@ export function applySnapshot(state: PublicState, snapshot: PublicSnapshot) {
   state.lobbyDeadline = snapshot.lobbyDeadline ?? -1; state.recoveryDeadline = snapshot.recoveryDeadline ?? -1;
   state.terminalKind = snapshot.terminalResult?.kind ?? ''; state.winningTeam = snapshot.terminalResult?.winningTeam ?? -1;
   state.terminalReason = snapshot.terminalResult?.reason ?? '';
+  const offer = snapshot.exchangeOffer;
+  state.exchangeId = offer?.id ?? ''; state.exchangeProposer = offer?.proposer ?? ''; state.exchangeCounterpart = offer?.counterpart ?? '';
+  state.exchangeGuardRevision = offer?.guardRevision ?? -1; state.exchangeExpiresAt = offer?.expiresAt ?? -1;
+  state.exchangePrisonerFirst = offer?.prisoners[0] ?? ''; state.exchangePrisonerSecond = offer?.prisoners[1] ?? '';
   state.board.clear(); for (const [key, piece] of Object.entries(snapshot.board)) state.board.set(key, new PublicPiece(piece));
-  state.seats.clear(); for (const [key, seat] of Object.entries(snapshot.seats)) state.seats.set(key, new PublicSeat({ ...seat, disconnectDeadline: seat.disconnectDeadline ?? -1 }));
+  state.seats.clear(); for (const [key, seat] of Object.entries(snapshot.seats)) state.seats.set(key, new PublicSeat({ ...seat, disconnectDeadline: seat.disconnectDeadline ?? -1, exchangeCounterpart: snapshot.exchangeAvailable[key as keyof typeof snapshot.exchangeAvailable] ?? '' }));
   state.alive.clear(); for (const [key, alive] of Object.entries(snapshot.alive)) state.alive.set(key, new PublicArmy({ alive }));
   state.connected = Object.values(snapshot.seats).filter(seat => seat.connected).length;
 }

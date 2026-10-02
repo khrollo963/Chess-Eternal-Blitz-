@@ -2,10 +2,12 @@ import type { MatchRecord, PublicSnapshot } from '../domain/match.js';
 
 export type CommandCode = 'accepted' | 'invalid_command' | 'incompatible_version' | 'unauthorized' |
   'not_found' | 'request_conflict' | 'stale_revision' | 'invalid_phase' | 'wrong_seat' |
-  'out_of_turn' | 'frozen_army' | 'illegal_move' | 'storage_unavailable' | 'command_capacity' | 'deadline_expired';
+  'out_of_turn' | 'frozen_army' | 'illegal_move' | 'storage_unavailable' | 'command_capacity' | 'deadline_expired' |
+  'placement_failed' | 'no_offer' | 'offer_pending';
 export interface CommandResult {
   ok: boolean; code: CommandCode; requestId?: string; retryable: boolean;
   snapshot?: PublicSnapshot;
+  reason?: 'no_safe_pair';
 }
 export interface StoredCommand {
   actorId: string; requestId: string; fingerprint: string; result: CommandResult; committedAt: number;
