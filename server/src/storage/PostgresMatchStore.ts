@@ -1,12 +1,14 @@
 import type { Pool, PoolClient } from 'pg';
 import { COLORS, type MatchRecord } from '../domain/match.js';
-import type { LobbyRecord, LobbyStore } from './LobbyStore.js';
+import type { LobbyRecord, LobbyStore, LifecycleDue, MaintenanceHead } from './LobbyStore.js';
 import type { CommitResult, MatchCommit, StoredCommand } from './MatchStore.js';
 import { databaseError, schemaIdentifier, transaction } from './postgres.js';
 import { reconcileRankedAdmission } from './PostgresRankedAdmission.js';
+import { lobbyCapacity, LobbyCapacityError } from './lobby-capacity.js';
+import { maintenanceLimit, maintenanceTime } from './maintenance.js';
 
 export interface PostgresStoreOptions {
-  schema: string; maxCommandsPerMatch?: number; clock?: () => number;
+  schema: string; maxCommandsPerMatch?: number; maxUnstartedLobbies?: number; clock?: () => number;
   /** Failure injection only; production composition must not supply hooks. */
   hooks?: { beforeCommit?: (input: MatchCommit) => void | Promise<void>; afterCommit?: (input: MatchCommit) => void | Promise<void> };
 }
@@ -23,9 +25,11 @@ function stored(row: Record<string, any>): StoredCommand {
 export class PostgresMatchStore implements LobbyStore {
   private readonly schema: string;
   private readonly maxCommands: number;
+  private readonly maxUnstartedLobbies: number;
   constructor(private readonly pool: Pool, private readonly options: PostgresStoreOptions) {
     this.schema = schemaIdentifier(options.schema);
     this.maxCommands = options.maxCommandsPerMatch ?? 10000;
+    this.maxUnstartedLobbies = lobbyCapacity(options.maxUnstartedLobbies);
     if (!Number.isSafeInteger(this.maxCommands) || this.maxCommands < 0) throw new Error('Invalid storage bounds');
   }
   private async read<T>(sql: string, values: unknown[], map: (rows: any[]) => T): Promise<T> {
@@ -38,7 +42,21 @@ export class PostgresMatchStore implements LobbyStore {
   }
   async createInvited(record: LobbyRecord): Promise<boolean> {
     if (!record.lobby?.inviteCode) throw new Error('Invalid private invite record');
-    return transaction(this.pool, client => this.insert(client, record, true));
+    return transaction(this.pool, async client => {
+      // Serialize admission across connections/processes; the count and insert
+      // share this transaction. Lobby exits may only free capacity concurrently.
+      // Refresh the count after a competing admission commits, even if an
+      // operator changed the database's default transaction isolation level.
+      await client.query('SET TRANSACTION ISOLATION LEVEL READ COMMITTED');
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`enochian-lobby-capacity:${this.options.schema}`]);
+      const collision = await client.query(`SELECT 1 FROM ${this.schema}.matches WHERE invite_code=$1`, [record.lobby.inviteCode]);
+      if (collision.rowCount) return false;
+      if (record.phase === 'lobby') {
+        const count = await client.query(`SELECT count(*)::integer AS count FROM ${this.schema}.matches WHERE phase='lobby'`);
+        if (count.rows[0].count >= this.maxUnstartedLobbies) throw new LobbyCapacityError();
+      }
+      return this.insert(client, record, true);
+    });
   }
   private async insert(client: PoolClient, record: MatchRecord, allowInviteCollision: boolean): Promise<boolean> {
     const metadata = lobby(record);
@@ -59,6 +77,27 @@ export class PostgresMatchStore implements LobbyStore {
   }
   async listRecoverable(): Promise<MatchRecord[]> {
     return this.read(`SELECT record FROM ${this.schema}.matches WHERE phase IN ('lobby','active','paused') ORDER BY match_id`, [], rows => rows.map(row => row.record));
+  }
+  async maintenanceHead(matchId: string): Promise<MaintenanceHead | null> {
+    return this.read(`SELECT m.revision,m.phase,m.record#>>'{service,instanceId}' AS service_instance_id,
+      LEAST((SELECT min(d.deadline) FROM ${this.schema}.deadlines d WHERE d.match_id=m.match_id AND
+        ((m.phase='lobby' AND d.kind='lobby') OR (m.phase='paused' AND d.kind='recovery') OR
+        (m.phase IN ('active','paused') AND d.kind IN ('seat:R','seat:B','seat:Y','seat:K')))),
+        CASE WHEN m.phase='active' THEN (m.record#>>'{exchangeOffer,expiresAt}')::bigint ELSE NULL END) AS next_deadline
+      FROM ${this.schema}.matches m WHERE m.match_id=$1`, [matchId], rows => rows[0] ? {
+        revision: rows[0].revision, phase: rows[0].phase, serviceInstanceId: rows[0].service_instance_id,
+        nextDeadline: rows[0].next_deadline === null ? null : Number(rows[0].next_deadline),
+      } : null);
+  }
+  async listLifecycleDue(now: number, limit = 64, instanceId?: string): Promise<LifecycleDue[]> {
+    maintenanceTime(now); maintenanceLimit(limit);
+    return this.read(`SELECT d.match_id,d.kind,d.deadline FROM ${this.schema}.deadlines d
+      JOIN ${this.schema}.matches m ON m.match_id=d.match_id
+      WHERE d.deadline <= $1 AND ((d.kind='lobby' AND m.phase='lobby') OR (d.kind='recovery' AND m.phase='paused'))
+        AND ($3::text IS NULL OR m.record#>>'{service,instanceId}'=$3)
+      ORDER BY d.deadline,d.match_id,d.kind LIMIT $2`, [now, limit, instanceId ?? null], rows => rows.map(row => ({
+        matchId: row.match_id, kind: row.kind, deadline: Number(row.deadline),
+      })));
   }
   async findCommand(matchId: string, actorId: string, requestId: string): Promise<StoredCommand | null> {
     return this.read(`SELECT * FROM ${this.schema}.commands WHERE match_id=$1 AND actor_id=$2 AND request_id=$3`,

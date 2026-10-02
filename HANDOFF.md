@@ -2,6 +2,10 @@
 
 Updated **2026-10-02** after PR #1 merged and the multiplayer server successfully deployed from `main`.
 
+## Follow-up work requested 2026-10-02
+
+The next session explicitly authorized ranked activation, the lobby color-conflict fix, prominent notifications, and security/scenario audits with agents. This supersedes the previous stopping instruction for that scope. See `docs/multiplayer/2026-10-02-ranked-notifications.md` for current implementation and acceptance evidence and `docs/multiplayer/2026-10-02-security-audit.md` for the audit. Historical deployment evidence below remains a checkpoint, not proof that these new changes are live.
+
 ## Stop point and next-session authority
 
 The user confirmed that multiplayer now works and explicitly asked to **stop here**, create this file on `main`, and leave the next session for tomorrow. This handoff is the only new repository change authorized at this stop point. Do not resume implementation, install packages, enable ranked, change Auth providers, upload platform builds, or redeploy merely because you read this file. Start tomorrow with read-only intake and the next user's actual request.
@@ -135,13 +139,13 @@ New Railway services cannot opt into the deprecated legacy config-as-code path i
 
 No live Auth email was sent or social provider registered. No itch.io/Newgrounds upload/publication was performed. No two-tab test was represented as separate physical devices.
 
-## Known lobby usability issue for tomorrow
+## Lobby usability issue — corrected in follow-up source
 
-Both fresh pages default their color selector to **Red**. If the creator reserves Red, an invitation recipient who also submits Red gets HTTP 400 `{code:"color_unavailable"}`. Choosing Blue (or another free color) with the same code succeeds. The client currently hides that useful server code behind the generic “Unable to open the room” message. Occupied colors are disabled after a joined snapshot, not before joining.
+Both fresh pages default their color selector to **Red**. If the creator reserves Red, an invitation recipient who also submits Red gets HTTP 400 `{code:"color_unavailable"}`. Choosing Blue (or another free color) with the same code succeeds. The follow-up client now preserves allowlisted error codes and displays **“That color is taken; choose another color.”** in a persistent dismissible error toast and beside the controls. Lobby color-change acknowledgements also retain that safe code. Occupied colors remain disabled after a joined snapshot, not before joining.
 
-This was reproduced independently with local HTTP and on the final main deployment. The user's specific failed request was not captured, so do not claim definitive attribution to their request; they confirmed joining worked after the cutover/advice. No code correction for this usability issue was authorized after the stopping request.
+The original issue was reproduced independently with local HTTP and on the prior main deployment. The user's specific failed request was not captured, so do not claim definitive attribution to it. The subsequent session authorized this correction; regression tests cover failed Red entry, no roster mutation and successful explicit Blue retry.
 
-A reasonable future scoped improvement is to preserve allowlisted error codes and say “That color is taken; choose another color.” Pre-join availability hints need an explicit public projection/lookup design. Do not silently overwrite another seat or change the approved choose-color policy to automatic assignment.
+Pre-join availability hints remain deferred and need an explicit public projection/lookup design. The correction preserves the approved choose-color policy and never silently assigns or overwrites a seat.
 
 ## Remaining release acceptance and deferred work
 

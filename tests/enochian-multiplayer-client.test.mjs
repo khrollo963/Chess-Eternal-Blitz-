@@ -126,7 +126,7 @@ test('Open sign-in posts an empty object to the handoff route before opening its
   const f=fixture({fetch:async()=>({ok:true,json:async()=>({handoffId:'HANDOFF',completionSecret:'PRIVATE',pollSecret:'POLL',expiresAt:300000})})});
   const handler=script.match(/byId\('mpSignIn'\)\.onclick=async\(\)=>\{([\s\S]*?)\n      \};/)[1];
   const elements=new Map(),popup={opener:{},location:'about:blank',close(){this.closed=true;}},consumed=[];
-  const context=vm.createContext({core:f.core,authGeneration:0,authTimer:null,handoff:null,encodeURIComponent,clearTimeout,window:{open:()=>popup},byId:id=>{if(!elements.has(id))elements.set(id,{});return elements.get(id);},consumeHandoff:()=>consumed.push(true)});
+  const context=vm.createContext({core:f.core,authGeneration:0,authTimer:null,handoff:null,encodeURIComponent,clearTimeout,window:{open:()=>popup},identityStatus:()=>{},byId:id=>{if(!elements.has(id))elements.set(id,{});return elements.get(id);},consumeHandoff:()=>consumed.push(true)});
   await vm.runInContext(`(async()=>{${handler}})()`,context);
   assert.equal(f.requests[0].url,'http://127.0.0.1:2567/identity/handoffs');
   assert.equal(f.requests[0].init.method,'POST');assert.deepEqual(f.requests[0].body,{});
@@ -138,4 +138,48 @@ test('unavailable backend fails predictably and retains independent local-play f
   const f=fixture({fetch:async()=>{throw new Error('private-backend-error');}});
   assert.equal(await f.core.create({mode:'casual',name:'Alice',color:'R'}),false);assert.equal(f.core.view().joined,false);assert.match(f.statuses.at(-1),/Local play remains available/);assert.doesNotMatch(f.statuses.join(' '),/private-backend-error/);
   assert.match(script,/if\(!online\)return originals\.makeMove/);assert.match(script,/localCpu\.menu\(\)/);
+});
+
+test('taken color surfaces actionable feedback and retry keeps chosen color policy',async()=>{
+  let taken=true;
+  const f=fixture({fetch:async()=>taken?{ok:false,status:400,json:async()=>({code:'color_unavailable',detail:'PRIVATE'})}:{ok:true,json:async()=>({matchId:'match',code:'PUBLIC',credential:'PRIVATE-SEAT',roomId:'transport'})}});
+  assert.equal(await f.core.join({code:'PUBLIC',name:'Bob',color:'R'}),false);
+  assert.equal(f.core.view().joined,false);assert.equal(f.core.view().opening,false);
+  assert.match(f.statuses.at(-1),/That color is taken; choose another color/);
+  assert.doesNotMatch(f.statuses.join(' '),/PRIVATE/);
+  taken=false;assert.equal(await f.core.join({code:'PUBLIC',name:'Bob',color:'B'}),true);
+  assert.equal(f.requests.filter(r=>r.body).at(-1).body.color,'B');
+});
+
+test('only allowlisted HTTP codes reach feedback; unknown bodies and markup stay private',async()=>{
+  for(const body of [{code:'<img src=x onerror=alert(1)>',message:'PRIVATE'},null,{code:'constructor'},{code:'not_found'}]){
+    const f=fixture({fetch:async()=>({ok:false,status:400,json:async()=>body})});
+    await f.core.join({code:'WRONG',name:'Bob',color:'B'});
+    assert.doesNotMatch(f.statuses.join(' '),/PRIVATE|onerror|constructor/);
+    assert.match(f.statuses.at(-1),body?.code==='not_found'?/code is invalid or expired/:/Local play remains available/);
+  }
+});
+
+test('toasts persist errors, expire success, pause on focus, deduplicate and cap the stack',()=>{
+  const lib=load();assert.equal(typeof lib.createNotifications,'function');
+  const tasks=new Map();let serial=0;
+  const element=()=>({children:[],dataset:{},setAttribute(name,value){this[name]=value;},appendChild(child){this.children.push(child);child.parent=this;},remove(){const i=this.parent.children.indexOf(this);if(i>=0)this.parent.children.splice(i,1);},contains(target){return this.children.includes(target);}});
+  const host=element();const notices=lib.createNotifications({host,document:{createElement:element},setTimeout:(fn,ms)=>{tasks.set(++serial,{fn,ms});return serial;},clearTimeout:id=>tasks.delete(id)});
+  notices.show('<b>Color taken</b>','error');const error=host.children[0];
+  assert.equal(error.role,'alert');assert.equal(error.children[0].textContent,'<b>Color taken</b>');assert.equal(tasks.size,0);
+  notices.show('<b>Color taken</b>','error');assert.equal(host.children.length,1);
+  notices.show('Recovered','success');const success=host.children[1];assert.equal(tasks.size,1);
+  success.onfocusin();assert.equal(tasks.size,0);success.onfocusout({relatedTarget:null});assert.equal(tasks.size,1);
+  [...tasks.values()][0].fn();assert.equal(host.children.length,1);
+  notices.show('Second','error');notices.show('Third','error');notices.show('Fourth','error');assert.equal(host.children.length,3);
+  host.children[0].children[1].onclick();assert.equal(host.children.length,2);
+});
+
+test('pause notification uses the same service recovery grace or ranked absence message as inline status',()=>{
+  const transition=script.match(/const phaseKey=state\?state\.matchId[\s\S]*?\n      originals\.updateTurnIndicator\(\);/)[0].replace(/\n      originals\.updateTurnIndicator\(\);$/,'');
+  for(const [mode,recoveryDeadline,text] of [['casual',300000,'Service recovery paused. Return grace ends soon.'],['ranked',300000,'Service recovery paused. Return grace ends soon.'],['ranked',null,'Ranked match paused until all four humans return.']]){
+    const messages=[];
+    vm.runInNewContext(transition,{state:{matchId:'match',phase:'paused',mode,recoveryDeadline},lastPhase:null,byId:()=>({textContent:text}),feedback:(message,tone)=>messages.push({message,tone})});
+    assert.deepEqual(messages,[{message:text,tone:'warning'}]);
+  }
 });

@@ -23,6 +23,15 @@ export class MemoryMatchStore implements MatchStore {
     const entry = this.matches.get(matchId);
     return entry ? structuredClone(entry.record) : null;
   }
+  protected countPhase(phase: MatchRecord['phase']): number {
+    let count = 0;
+    for (const entry of this.matches.values()) if (entry.record.phase === phase) count++;
+    return count;
+  }
+  /** Metadata adapters project these trusted records without invoking full-record load. */
+  protected *storedRecords(): Iterable<MatchRecord> {
+    for (const entry of this.matches.values()) yield entry.record;
+  }
   async findCommand(matchId: string, actorId: string, requestId: string): Promise<StoredCommand | null> {
     const command = this.matches.get(matchId)?.commands.get(key(actorId, requestId));
     return command ? structuredClone(command) : null;

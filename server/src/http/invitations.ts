@@ -10,13 +10,14 @@ type App = ReturnType<BunWebSockets['getExpressApp']>;
 export function registerInvitations(app: App, lobby: LobbyService, verifyAuth?: (authorization: string | undefined) => Promise<VerifiedAuth | undefined>, isReady?: () => boolean) {
   const body = (input: unknown): Record<string, unknown> => {
     if (typeof input !== 'string' || Buffer.byteLength(input) > 2048) throw new Error('invalid_command');
-    const parsed = JSON.parse(input);
+    let parsed: unknown;
+    try { parsed = JSON.parse(input); } catch { throw new Error('invalid_command'); }
     if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') throw new Error('invalid_command');
-    return parsed;
+    return parsed as Record<string, unknown>;
   };
   const safeError = (error: unknown) => {
     const code = error instanceof Error ? error.message : '';
-    const allowed = ['invalid_command','invalid_name','invalid_color','invalid_mode','unauthorized','duplicate_account','duplicate_connection','deadline_expired','invalid_phase','not_found','room_full','color_unavailable','ranked_disabled','ranked_match_locked','ranked_cooldown','stale_revision'];
+    const allowed = ['invalid_command','invalid_name','invalid_color','invalid_mode','unauthorized','duplicate_account','duplicate_connection','deadline_expired','invalid_phase','not_found','room_full','color_unavailable','ranked_disabled','ranked_match_locked','ranked_cooldown','stale_revision','lobby_capacity'];
     return allowed.includes(code) ? code : 'storage_unavailable';
   };
   app.post('/invitations', async (req, res) => {
@@ -36,7 +37,7 @@ export function registerInvitations(app: App, lobby: LobbyService, verifyAuth?: 
     } catch (error) {
       if (matchId) { try { await lobby.voidCreation(matchId); } catch { /* unstarted reservation expires absolutely */ } }
       if (room) { try { await room.disconnect(); } catch { /* transport already closed */ } }
-      const code = safeError(error); res.status(code === 'storage_unavailable' ? 503 : 400).json({ code });
+      const code = safeError(error); res.status(code === 'storage_unavailable' ? 503 : code === 'lobby_capacity' ? 429 : 400).json({ code });
     }
   });
   app.post('/invitations/join', async (req, res) => {

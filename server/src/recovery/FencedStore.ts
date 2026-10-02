@@ -30,4 +30,10 @@ export class FencedStore implements LobbyStore {
   async listRecoverable() {
     return (await this.store.listRecoverable()).filter(record => (record as RecoveryRecord).service?.instanceId === this.instanceId);
   }
+  async maintenanceHead(matchId: string) {
+    const head = await this.store.maintenanceHead(matchId);
+    if (head && head.phase !== 'finished' && head.phase !== 'void' && head.serviceInstanceId !== this.instanceId) throw new Error('obsolete_service_instance');
+    return head;
+  }
+  listLifecycleDue(now: number, limit = 64) { return this.store.listLifecycleDue(now, limit, this.instanceId); }
 }

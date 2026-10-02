@@ -38,4 +38,29 @@ Hosted Supabase settlement and pending-recovery checks passed three tests /
 lost acknowledgement, outage without penalties and startup after an accepted
 terminal move before settlement. Created schemas were removed. These checks
 do not satisfy separate physical-device/platform or Railway restart acceptance.
-Production ranked entry remains disabled.
+The deployment recorded in `HANDOFF.md` had ranked entry disabled; local tests
+and repository changes do not change that deployed environment.
+
+## Runtime activation
+
+The user requested ranked activation after the handoff. Production startup now
+accepts `MULTIPLAYER_RANKED_ENABLED=true` and passes that policy to both ranked
+admission and `GET /identity/config`. Omission or `false` disables new ranked
+entry; other values fail startup. Enabling requires valid `SUPABASE_URL` and
+`SUPABASE_PUBLISHABLE_KEY` before durable startup. It does not bypass fresh
+server identity checks, four distinct human accounts, all-human readiness,
+admission locks, restrictions, durable readiness or settlement recovery.
+
+For the hosted service, set the flag in its private runtime environment and
+deploy a revision containing this wiring using the controlled stop-old,
+verify-stopped, start-new lease procedure in [operations](operations.md).
+Verify `/ready` returns 200 and `/identity/config` reports `rankedEnabled: true`.
+Existing ranked records still recover and settle when new entry is disabled.
+
+Account sign-in needs the public Auth configuration, an enabled email provider
+and an OTP-code email template. Social sign-in remains optional and requires
+separate provider credentials/allowlisting; the default UI offers email only.
+See [sign-in](signin.md). A successful fixture test cannot establish real email
+delivery, four-account/device acceptance, hosted restart/timeout/settlement or
+backup restoration; record these live outcomes separately. Do not weaken auth
+or simulate verified accounts on the hosted service to make ranked available.
