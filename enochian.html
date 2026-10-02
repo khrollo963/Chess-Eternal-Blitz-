@@ -1,0 +1,1570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chess Eternal: Four Kings & Golden Dawn</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#130d24;
+    --bg2:#1c1436;
+    --panel:#241b3d;
+    --panel2:#2f2350;
+    --gold:#d4af5a;
+    --gold-bright:#f3d485;
+    --parchment:#ede2c8;
+    --ink:#0d0817;
+    --c-red:#df4a3d;
+    --c-yellow:#eec14c;
+    --c-black:#55545f;
+    --c-green:#48a35c;
+    --mystical:#7b68ee;
+    --mystical-light:#9d84f5;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:radial-gradient(ellipse at 50% -10%, #2a1f4d 0%, var(--bg) 55%), var(--bg);
+    color:var(--parchment);
+    font-family:'VT323', monospace;
+    min-height:100vh;
+    padding-bottom:40px;
+  }
+  .pixel{font-family:'Press Start 2P', monospace;}
+  ::selection{background:var(--gold); color:var(--ink);}
+
+  .crt{
+    pointer-events:none;
+    position:fixed; inset:0; z-index:999;
+    background:repeating-linear-gradient(to bottom, rgba(0,0,0,0.13) 0px, rgba(0,0,0,0.13) 1px, rgba(0,0,0,0) 2px, rgba(0,0,0,0) 3px);
+    mix-blend-mode:multiply;
+    opacity:0.35;
+  }
+
+  .menu-container{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    padding:20px;
+  }
+
+  .card{
+    background:var(--panel);
+    border:3px solid var(--mystical);
+    box-shadow:6px 6px 0 var(--mystical);
+    padding:20px 22px;
+    margin-bottom:22px;
+  }
+  .card h2{
+    font-family:'Press Start 2P', monospace;
+    font-size:16px;
+    color:var(--mystical-light);
+    margin:0 0 14px;
+    line-height:1.6;
+  }
+  .card h3{
+    font-family:'Press Start 2P', monospace;
+    font-size:12px;
+    color:var(--gold-bright);
+    margin:18px 0 10px;
+    line-height:1.6;
+  }
+  .card p, .card li{
+    font-size:15px;
+    line-height:1.6;
+    color:var(--parchment);
+  }
+
+  .color-picker{
+    display:flex;
+    justify-content:center;
+    gap:24px;
+    flex-wrap:wrap;
+    margin:12px 0;
+  }
+  .team-group{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+    padding:12px;
+    border:2px solid var(--gold);
+    background:var(--panel2);
+  }
+  .team-label{
+    font-family:'Press Start 2P', monospace;
+    font-size:10px;
+    color:var(--gold-bright);
+    margin-bottom:4px;
+  }
+  .color-pick-btn{
+    font-family:'Press Start 2P', monospace;
+    font-size:10px;
+    padding:8px 12px;
+    background:var(--panel);
+    color:var(--parchment);
+    border:2px solid var(--mystical);
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    width:110px;
+  }
+  .color-pick-btn .swatch{
+    display:inline-block;
+    width:12px; height:12px;
+    border:2px solid #000;
+  }
+  .color-pick-btn:hover{ background:var(--panel2); }
+  .color-pick-btn.active{
+    outline:3px solid var(--gold-bright);
+    outline-offset:2px;
+    background:var(--panel2);
+  }
+
+  .choice-row{
+    display:flex;
+    justify-content:center;
+    gap:10px;
+    flex-wrap:wrap;
+    margin:12px 0;
+  }
+  .choice-btn{
+    font-family:'Press Start 2P', monospace;
+    font-size:10px;
+    padding:10px 16px;
+    background:var(--panel);
+    color:var(--parchment);
+    border:2px solid var(--mystical);
+    cursor:pointer;
+  }
+  .choice-btn:hover{ background:var(--panel2); }
+  .choice-btn.active{
+    outline:3px solid var(--gold-bright);
+    outline-offset:2px;
+    background:var(--panel2);
+  }
+
+  .link-btn{
+    font-family:'Press Start 2P', monospace;
+    font-size:10px;
+    padding:10px 16px;
+    background:var(--panel);
+    color:var(--gold-bright);
+    border:2px solid var(--mystical);
+    cursor:pointer;
+    text-decoration:none;
+    display:inline-block;
+    box-shadow:3px 3px 0 var(--mystical);
+  }
+  .link-btn:hover{
+    background:var(--panel2);
+    color:var(--gold-bright);
+  }
+  .link-btn:active{
+    transform:translate(2px,2px);
+    box-shadow:1px 1px 0 var(--mystical);
+  }
+
+  .cpu-note{
+    text-align:center;
+    font-size:12px;
+    opacity:0.8;
+    margin:4px 0 0;
+  }
+
+  /* game board styles below */
+  #gamePlayArea{ display:none; }
+  
+  main{ max-width:1000px; margin:0 auto; padding:0 14px; }
+  .tab-panel{ display:none; }
+  .tab-panel.active{ display:block; }
+
+  nav.tabs{
+    display:flex; flex-wrap:wrap; justify-content:center; gap:8px;
+    padding:12px 12px 16px;
+    max-width:1000px; margin:0 auto;
+    border-bottom:2px dashed var(--mystical);
+  }
+  .tab-btn{
+    font-family:'Press Start 2P', monospace;
+    font-size:10px;
+    background:var(--panel);
+    color:var(--parchment);
+    border:3px solid var(--mystical);
+    border-radius:0;
+    box-shadow:3px 3px 0 var(--mystical);
+    padding:10px 14px;
+    cursor:pointer;
+    letter-spacing:1px;
+  }
+  .tab-btn:hover{ background:var(--panel2); }
+  .tab-btn:active{ transform:translate(2px,2px); box-shadow:1px 1px 0 var(--mystical); }
+  .tab-btn.active{
+    background:var(--mystical);
+    color:var(--parchment);
+    box-shadow:3px 3px 0 var(--mystical-light);
+  }
+
+  #board{
+    display:grid;
+    grid-template-columns:repeat(10, 1fr);
+    grid-template-rows:repeat(10, 1fr);
+    width:min(90vw, 500px);
+    height:min(90vw, 500px);
+    margin:20px auto;
+    gap:0;
+    background:transparent;
+  }
+  .sq{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:24px;
+    cursor:pointer;
+    position:relative;
+    box-sizing:border-box;
+  }
+  .sq.on-board{
+    border:2px solid #000;
+  }
+  .sq.off-board{
+    visibility:hidden;
+    pointer-events:none;
+  }
+  .sq.light{ background:#fffbf0; }
+  .sq.dark{ background:#60a080; }
+  .sq:hover.on-board{ filter:brightness(1.1); }
+  .piece{
+    font-size:clamp(16px, 4.6vw, 26px);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:80%;
+    height:80%;
+    margin:auto;
+    color:#14101f;
+    -webkit-text-stroke:1px rgba(255,255,255,0.55);
+    paint-order:stroke fill;
+    border:2px solid #0d0817;
+    border-radius:4px;
+    box-sizing:border-box;
+    image-rendering:pixelated;
+    box-shadow:
+      inset 0 4px 0 rgba(255,255,255,0.55),
+      inset 0 -4px 0 rgba(0,0,0,0.32),
+      inset 4px 0 0 rgba(255,255,255,0.28),
+      inset -4px 0 0 rgba(0,0,0,0.22),
+      2px 2px 0 rgba(0,0,0,0.55);
+  }
+  .piece[data-color="Y"]{ background:#ffe600; }
+  .piece[data-color="B"]{ background:#00c3e0; }
+  .piece[data-color="R"]{ background:#e04040; }
+  .piece[data-color="K"]{ background:#8a8a8a; }
+  .sq.selected .piece{ box-shadow:
+      inset 0 4px 0 rgba(255,255,255,0.75),
+      inset 0 -4px 0 rgba(0,0,0,0.32),
+      inset 4px 0 0 rgba(255,255,255,0.4),
+      inset -4px 0 0 rgba(0,0,0,0.22),
+      0 0 0 3px #fff, 2px 2px 0 rgba(0,0,0,0.55);
+  }
+  .sq.selected{ box-shadow:inset 0 0 0 3px #fff; filter:brightness(1.2); }
+  .sq.legal-move::after{
+    content:'';
+    position:absolute;
+    width:28%;
+    height:28%;
+    border-radius:50%;
+    background:rgba(0,0,0,0.35);
+  }
+  .sq.legal-capture{ box-shadow:inset 0 0 0 3px rgba(220,50,50,0.85); }
+  .sq.king-check{ box-shadow:inset 0 0 0 3px #ff2d2d; }
+
+  .turn-bar{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:14px;
+    flex-wrap:wrap;
+    margin:16px 0 4px;
+  }
+  .turn-indicator{
+    font-family:'Press Start 2P', monospace;
+    font-size:12px;
+    padding:10px 16px;
+    border:3px solid var(--mystical);
+    background:var(--panel);
+    color:var(--parchment);
+  }
+  .turn-indicator .swatch{
+    display:inline-block;
+    width:12px; height:12px;
+    border:2px solid #000;
+    margin-right:8px;
+    vertical-align:-1px;
+  }
+  .mini-reset-btn{
+    font-size:9px;
+    background:var(--panel);
+    color:var(--parchment);
+    border:2px solid var(--gold);
+    padding:8px 10px;
+    cursor:pointer;
+  }
+  .mini-reset-btn:hover{ background:var(--panel2); }
+  .status-msg{
+    text-align:center;
+    font-size:15px;
+    min-height:24px;
+    margin:8px 0 0;
+    color:var(--gold-bright);
+  }
+  .status-msg.win{
+    font-family:'Press Start 2P', monospace;
+    font-size:13px;
+    line-height:1.6;
+  }
+
+  .note{
+    border-left:4px solid var(--mystical);
+    background:var(--panel2);
+    padding:12px 14px;
+    margin:14px 0;
+    font-size:14px;
+  }
+
+  .move-log-wrap{
+    max-width:500px;
+    margin:18px auto 0;
+    background:var(--panel);
+    border:3px solid var(--mystical);
+    box-shadow:4px 4px 0 var(--mystical);
+  }
+  .move-log-title{
+    font-size:10px;
+    color:var(--gold-bright);
+    background:var(--panel2);
+    padding:8px 12px;
+    border-bottom:2px dashed var(--mystical);
+  }
+  .move-log{
+    max-height:220px;
+    overflow-y:auto;
+    padding:8px 12px;
+    font-size:14px;
+    line-height:1.5;
+  }
+  .move-log .move-entry{
+    display:flex;
+    gap:8px;
+    padding:3px 0;
+    border-bottom:1px solid rgba(123,104,238,0.25);
+  }
+  .move-log .move-entry:last-child{ border-bottom:none; }
+  .move-log .move-num{ opacity:0.6; min-width:28px; }
+  .move-log .move-swatch{
+    display:inline-block;
+    width:11px; height:11px;
+    border:2px solid #000;
+    flex-shrink:0;
+    margin-top:3px;
+  }
+  .move-log .move-capture{ color:#ff8a7a; }
+  .move-log .move-empty{ opacity:0.6; text-align:center; padding:10px 0; }
+
+  .piece-tooltip{
+    position:fixed;
+    pointer-events:none;
+    z-index:2000;
+    background:var(--panel);
+    color:var(--gold-bright);
+    border:2px solid var(--mystical);
+    box-shadow:3px 3px 0 var(--mystical);
+    font-family:'Press Start 2P', monospace;
+    font-size:10px;
+    line-height:1.5;
+    padding:6px 10px;
+    display:none;
+    white-space:nowrap;
+  }
+  .piece-tooltip.visible{ display:block; }
+
+  .piece.frozen{
+    opacity:0.5;
+    filter:grayscale(65%);
+    cursor:not-allowed;
+  }
+
+  .game-over-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    z-index:1500;
+    background:rgba(8,5,18,0.82);
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+  }
+  .game-over-overlay.visible{ display:flex; }
+  .game-over-card{
+    background:var(--panel);
+    border:4px solid var(--gold-bright);
+    box-shadow:10px 10px 0 var(--mystical);
+    padding:32px 28px;
+    max-width:440px;
+    width:100%;
+    text-align:center;
+  }
+  .game-over-card h2{
+    font-family:'Press Start 2P', monospace;
+    font-size:clamp(18px, 5vw, 26px);
+    color:var(--gold-bright);
+    margin:0 0 18px;
+    line-height:1.6;
+    text-shadow:2px 2px 0 var(--c-red), 4px 4px 0 var(--ink);
+  }
+  .game-over-message{
+    font-size:17px;
+    line-height:1.6;
+    margin:0 0 24px;
+    color:var(--parchment);
+  }
+  .game-over-actions{
+    display:flex;
+    gap:12px;
+    justify-content:center;
+    flex-wrap:wrap;
+  }
+
+
+  .rules-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));
+    gap:14px;
+    margin:14px 0;
+  }
+  .rule-card{
+    background:var(--panel2);
+    border:2px solid var(--mystical);
+    padding:14px;
+  }
+  .rule-card h4{
+    font-family:'Press Start 2P', monospace;
+    font-size:11px;
+    color:var(--mystical-light);
+    margin:0 0 8px;
+  }
+  .rule-card p{
+    font-size:13px;
+    margin:0;
+  }
+
+  .back-to-launcher{
+    position:fixed;
+    top:14px;
+    left:14px;
+    z-index:100;
+    font-family:'Press Start 2P', monospace;
+    font-size:9px;
+    background:var(--panel);
+    color:var(--parchment);
+    border:2px solid var(--mystical);
+    padding:8px 10px;
+    cursor:pointer;
+  }
+  .back-to-launcher:hover{ background:var(--panel2); }
+  .back-to-launcher.hidden{ display:none; }
+
+  @media (max-width:640px){
+    .card{ padding:14px 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="crt"></div>
+<div id="pieceTooltip" class="piece-tooltip"></div>
+
+<div id="gameOverOverlay" class="game-over-overlay">
+  <div class="game-over-card">
+    <h2 id="gameOverTitle" class="pixel">GAME OVER</h2>
+    <p id="gameOverMessage" class="game-over-message"></p>
+    <div class="game-over-actions">
+      <button id="playAgainBtn" class="choice-btn pixel">🔁 Play Again</button>
+      <button id="gameOverMenuBtn" class="choice-btn pixel">🏠 Main Menu</button>
+    </div>
+  </div>
+</div>
+<button class="back-to-launcher hidden" id="launcherBackBtn">⤴ MENU</button>
+
+<nav class="tabs" id="tabNav">
+  <button class="tab-btn active" data-tab="play">Play</button>
+  <button class="tab-btn" data-tab="rules">Rules</button>
+  <button class="tab-btn" data-tab="history">History &amp; Lore</button>
+  <button class="tab-btn" data-tab="sessionlog">Session Log</button>
+  <button class="tab-btn" data-tab="support">Support</button>
+</nav>
+
+<main>
+
+    <!-- PLAY TAB -->
+    <section class="tab-panel active" id="tab-play">
+      <div class="card">
+        <h2>Enochian Chess: 2v2</h2>
+        <p>A four-player team variant where Yellow &amp; Red face off against Blue &amp; Black on a mystical battlefield. Each army commands its own king, queen, rook, bishop, knight, and four specialized pawns.</p>
+
+        <div id="startMenu" class="card" style="text-align:center; max-width:600px; margin:24px auto;">
+          <h2>⚔ ENOCHIAN CHESS: 2v2 ⚔</h2>
+          <p style="font-size:15px; margin-bottom:20px;">Select your color and difficulty to begin the sacred game.</p>
+
+          <h3>Choose Your Color</h3>
+          <div id="colorPicker" class="color-picker">
+            <div class="team-group">
+              <div class="team-label">🌍 Team Sulphur</div>
+              <button class="color-pick-btn" data-color="R"><span class="swatch" style="background:#e04040"></span>Red</button>
+              <button class="color-pick-btn" data-color="Y"><span class="swatch" style="background:#ffe600"></span>Yellow</button>
+            </div>
+            <div class="team-group">
+              <div class="team-label">🧂 Team Salt</div>
+              <button class="color-pick-btn" data-color="B"><span class="swatch" style="background:#00e5ff"></span>Blue</button>
+              <button class="color-pick-btn" data-color="K"><span class="swatch" style="background:#8a8a8a"></span>Black</button>
+            </div>
+          </div>
+          <p class="cpu-note">Pick a color to play as; the other three armies are played by the computer. Leave none selected for pass-and-play with friends.</p>
+
+          <h3>Computer Difficulty</h3>
+          <div class="choice-row" id="difficultyPicker">
+            <button class="choice-btn active" data-diff="easy">Easy</button>
+            <button class="choice-btn" data-diff="medium">Medium</button>
+            <button class="choice-btn" data-diff="hard">Hard</button>
+            <button class="choice-btn" data-diff="grandmaster">Grand Master</button>
+          </div>
+
+          <div style="text-align:center; margin-top:24px;">
+            <button id="startGameBtn" class="choice-btn pixel" style="font-size:14px; padding:12px 24px; background:var(--mystical); color:var(--parchment); border:3px solid var(--gold-bright);">START GAME</button>
+          </div>
+        </div>
+
+        <div id="gamePlayArea" style="display:none;">
+          <div class="turn-bar">
+            <div id="turnIndicator" class="turn-indicator"></div>
+            <button id="speedToggleBtn" class="mini-reset-btn pixel" style="display:none;">↯ Fast-Forward</button>
+            <button id="resetBtn" class="mini-reset-btn pixel">🏠 Main Menu</button>
+          </div>
+
+          <div id="board"></div>
+          <div id="statusMsg" class="status-msg"></div>
+
+          <div class="move-log-wrap">
+            <div class="move-log-title pixel">Move Log</div>
+            <div id="moveLog" class="move-log"></div>
+          </div>
+        </div>
+
+
+        <div class="note">
+          <strong>Team Play:</strong> 🌍 <strong>Team Sulphur</strong> (Red &amp; Yellow) faces off against 🧂 <strong>Team Salt</strong> (Blue &amp; Black). Win by capturing both enemy kings. Pieces cannot capture or block-then-capture teammates, and a computer-controlled teammate will always fight alongside you rather than against you.
+        </div>
+
+        <h3>Turn Order</h3>
+        <p style="font-size:13px;">
+          Turns pass counter-clockwise around the board, always starting with Red:<br>
+          ◄🔴 <strong>Red</strong> 🔄 ◄🔵 <strong>Blue</strong> 🔄 ◄🟡 <strong>Yellow</strong> 🔄 ◄⬛ <strong>Black</strong> 🔄 (repeat)
+        </p>
+
+        <h3>Color Assignments</h3>
+        <p style="font-size:13px;">
+          🟡 <strong>Yellow</strong> (top-left) &amp; 🔴 <strong>Red</strong> (bottom-right): 🌍 <strong>Team Sulphur</strong><br>
+          🔵 <strong>Blue</strong> (top-right) &amp; ⬛ <strong>Black</strong> (bottom-left): 🧂 <strong>Team Salt</strong>
+        </p>
+      </div>
+    </section>
+
+    <!-- RULES TAB -->
+    <section class="tab-panel" id="tab-rules">
+      <div class="card">
+        <h2 class="pixel">Core Rules</h2>
+        
+        <h3>The Armies</h3>
+        <p>Each color commands 8 pieces: 1 King, 1 Queen, 1 Rook, 1 Bishop, 1 Knight, and 4 Pawns (each pawn associated with a major piece type).</p>
+
+        <div class="rules-grid">
+          <div class="rule-card">
+            <h4>King ♔</h4>
+            <p>Moves one square any direction. Not checkmated; instead, captured outright. When captured, all pieces of that color <strong>freeze</strong> and cannot move.</p>
+          </div>
+          <div class="rule-card">
+            <h4>Queen ♕</h4>
+            <p>Leaps exactly 2 squares in any direction (like an "alibaba"). Special capture rule against other queens: forms a <strong>Concourse</strong> in a 2✕2 with all four queens.</p>
+          </div>
+          <div class="rule-card">
+            <h4>Rook ♖</h4>
+            <p>Moves orthogonally (straight lines). No castling allowed. Participates in board control.</p>
+          </div>
+          <div class="rule-card">
+            <h4>Bishop ♗</h4>
+            <p>Moves diagonally. Opposing bishops are color-bound opposites. Special <strong>Concourse of Bishoping</strong> with all four bishops in a 2✕2.</p>
+          </div>
+          <div class="rule-card">
+            <h4>Knight ♘</h4>
+            <p>Moves exactly as in standard chess: L-shaped jumps (2 squares in one direction, 1 square perpendicular).</p>
+          </div>
+          <div class="rule-card">
+            <h4>Pawns ♙</h4>
+            <p>Each advances toward the opposite team. Yellow toward rank 1, Blue toward file a, Red toward rank 8, Black toward file h. <strong>Promote upon reaching the far edge</strong>—but only if your side has already lost at least one pawn of that type.</p>
+          </div>
+        </div>
+
+        <h3>Concourse Mechanics</h3>
+        <p>When a piece completes a 2✕2 square occupied by one piece from each of the four armies, the moving piece <strong>captures all three others</strong>. This is rare—only five specific board regions support concourses:</p>
+        <ul>
+          <li><strong>Central cluster:</strong> c4, c5, d4, d5</li>
+          <li><strong>Northwest:</strong> b2, b3, c2, c3</li>
+          <li><strong>Northeast:</strong> b6, b7, c6, c7</li>
+          <li><strong>Southwest:</strong> f2, f3, g2, g3</li>
+          <li><strong>Southeast:</strong> f6, f7, g6, g7</li>
+        </ul>
+
+        <h3>Throne Squares &amp; King Seizure</h3>
+        <p>The four corner throne squares (a1, a8, h1, h8) hold double occupancy only at the start (king + partner piece). Once either piece leaves, the throne reverts to single occupancy forever.</p>
+        <p><em>King Seizure:</em> A living king may move onto a friendly ally's throne to seize control of that army. Frozen armies can be reactivated this way. Control persists even if the usurping king later moves away.</p>
+
+        <h3>Prisoner Exchange</h3>
+        <p>If opposing players have each captured an enemy king, they may mutually agree to exchange "prisoner" kings. Returned kings reactivate their frozen pieces and are placed on their throne squares (or nearby empty squares).</p>
+
+        <h3>Privileged Pawns & Demotion</h3>
+        <p>When a side is reduced to few pieces, pawns gain <em>privilege</em> and can promote to any major/minor piece (not just their restricted type). If a privileged pawn promotes to a piece type that side already has, the original piece is demoted to the corresponding pawn.</p>
+
+        <h3>Special Endgame Rules</h3>
+        <ul>
+          <li><strong>Bare King Draw:</strong> If both teammates on one team (e.g., Team Sulphur or Team Salt) are reduced to bare kings (no other pieces), the game is a draw.</li>
+          <li><strong>Stalemate:</strong> A player with only moves that put their king in check is stalemated. They skip turns until the board changes.</li>
+          <li><strong>Withdrawal:</strong> A player may voluntarily withdraw; their pieces pass to their teammate's control.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- HISTORY TAB -->
+    <section class="tab-panel" id="tab-history">
+      <div class="card">
+        <h2 class="pixel">The Golden Dawn & Hermetic Origins</h2>
+
+        <h3>A Secret Teaching</h3>
+        <p>Enochian Chess arose in the Victorian occult milieu, specifically within the <strong>Hermetic Order of the Golden Dawn</strong>, where it was used both as a recreational game and as a divination system. The game represents a synthesis of Hermetic philosophy, chess strategy, and esoteric correspondences.</p>
+
+        <div class="note">
+          <strong>W.B. Yeats &amp; MacGregor Mathers (1894):</strong> The poet William Butler Yeats recorded playing a "curious form of chess" for four players with S.L. MacGregor Mathers, a founding member of the Golden Dawn. This note, combined with a Golden Dawn paper dated no later than 1897, anchors the game's historical attestation.
+        </div>
+
+        <h3>Four Elements &amp; Four Colors</h3>
+        <p>The game's structure mirrors the four classical elements:</p>
+        <ul>
+          <li><strong>🟡 Yellow = Air</strong> – intellect, divination, swift thought</li>
+          <li><strong>🔴 Red = Fire</strong> – will, action, transformation</li>
+          <li><strong>🔵 Blue = Water</strong> – emotion, intuition, flow</li>
+          <li><strong>⬛ Black = Earth</strong> – matter, foundation, stability</li>
+        </ul>
+        <p>Teams alternate based on the elemental board chosen, ensuring that Fire-Earth oppose Air-Water, reflecting alchemical balance.</p>
+
+        <h3>Pieces &amp; Occult Correspondences</h3>
+        <p>Each piece was traditionally rendered as a hand-painted stand-up with Egyptian-inspired imagery and specific color schemes. The original equipment featured:</p>
+        <ul>
+          <li><strong>Kings:</strong> White reverse (sovereignty, unity)</li>
+          <li><strong>Knights:</strong> Red reverse (Mars, action, conflict)</li>
+          <li><strong>Queens:</strong> Blue reverse (Venus, harmony, intellect)</li>
+          <li><strong>Bishops:</strong> Yellow reverse (Mercury, communication, wisdom)</li>
+          <li><strong>Rooks:</strong> Black reverse (Saturn, structure, boundaries)</li>
+        </ul>
+
+        <h3>Enoch & the Name</h3>
+        <p>The game takes its name from <strong>Enoch</strong>, the biblical patriarch who "walked with God" and was taken without experiencing death. In occult tradition, Enoch is associated with hidden mystical knowledge and divine secrets—hence the game's connection to esoteric teaching. It was also historically known as <em>Rosicru cian Chess</em>, after the Order of the Rosy Cross, from which the Golden Dawn claimed spiritual lineage.</p>
+
+        <h3>Chris Zalewiski's Reconstruction</h3>
+        <p>Modern rules are based on Chris Zalewiski's reconstruction of Golden Dawn material, drawing on notes attributed to Israel Regardie and an "Official Ritual" credited to S.L. Mathers. The authorship remains uncertain—some scholars argue the rules derive from earlier German occult groups—but the game's esoteric purpose is clear: a vehicle for both intellectual play and divination within the Golden Dawn's teaching hierarchy.</p>
+
+        <div class="note">
+          The Golden Dawn regarded Enochian Chess as a <strong>secret teaching</strong>. It was kept from casual learners and used primarily by advanced practitioners who understood its symbolic layers: each piece's movement, each elemental correspondence, each board configuration held deeper meaning for the initiated.
+        </div>
+      </div>
+    </section>
+
+    <!-- SESSION LOG TAB -->
+    <section class="tab-panel" id="tab-sessionlog">
+      <div class="card">
+        <h2 class="pixel">Session Log</h2>
+        <p>A record of your recent games – wins, losses, colors played, and difficulty faced.</p>
+        <div id="sessionLogContainer"></div>
+      </div>
+    </section>
+
+    <!-- SUPPORT TAB -->
+    <section class="tab-panel" id="tab-support">
+      <div class="card" style="text-align:center;">
+        <h2 class="pixel">Support &amp; Credits</h2>
+        <p>This game was built by <strong>Uthman Ken</strong>, writing and publishing as <strong>Mufti Khrollo</strong>. If you enjoyed working the elemental thrones, the best way to support more of it is a follow, a subscribe, or a cup of coffee.</p>
+        <div class="support-grid" style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center;">
+          <a class="link-btn" href="https://mufti963khrollo.substack.com" target="_blank" rel="noopener">Substack</a>
+          <a class="link-btn" href="https://www.tiktok.com/@thegnosticmuslim" target="_blank" rel="noopener">TikTok</a>
+          <a class="link-btn" href="https://www.instagram.com/khrollo963" target="_blank" rel="noopener">Instagram</a>
+          <a class="link-btn" href="https://github.com/khrollo963" target="_blank" rel="noopener">GitHub</a>
+          <a class="link-btn" href="https://www.amazon.com/Kabbalistic-Sufism-Synthesis-Hermetic-mysticism-ebook/dp/B0F6VWB94" target="_blank" rel="noopener">Books on Amazon</a>
+          <a class="link-btn" href="https://paypal.me/everythingken" target="_blank" rel="noopener">Donate (PayPal)</a>
+        </div>
+        <p class="note" style="text-align:left; margin-top:20px;">Rules and history adapted from Golden Dawn source material, Chris Zalewiski's reconstructions, and Israel Regardie's writings. All code, pixel art and sound in this page are original to this project.</p>
+      </div>
+    </section>
+
+  </main>
+
+<script>
+'use strict';
+
+const SIZE = 8;
+
+const COLOR_MAP = {
+  'Y': { emoji: '🟡', css: '#ffe600', label: 'Yellow' },
+  'B': { emoji: '🔵', css: '#00e5ff', label: 'Blue' },
+  'R': { emoji: '🔴', css: '#e04040', label: 'Red' },
+  'K': { emoji: '⬛', css: '#8a8a8a', label: 'Black' }
+};
+
+const TURN_ORDER = ['R', 'B', 'Y', 'K'];
+
+const FORWARD = {
+  Y: [1, 0],   // top-left army advances downward
+  B: [0, -1],  // top-right army advances leftward
+  R: [-1, 0],  // bottom-right army advances upward
+  K: [0, 1]    // bottom-left army advances rightward
+};
+
+const TEAM = { Y: 1, R: 1, B: 2, K: 2 };
+
+function isOnBoard(r, c){
+  if(r >= 0 && r <= 7 && c >= 0 && c <= 7) return true;
+  if(r === 0 && c === -1) return true;
+  if(r === -1 && c === 7) return true;
+  if(r === 7 && c === 8) return true;
+  if(r === 8 && c === 0) return true;
+  return false;
+}
+
+const PIECE_VALUE = { KING: 0, QUEEN: 9, ROOK: 5, BISHOP: 3, KNIGHT: 3, PAWN: 1 };
+
+// Team-aware helper: true if colorB is on an opposing team to colorA (never friendly fire)
+function isEnemyColor(colorA, colorB){
+  return TEAM[colorA] !== TEAM[colorB];
+}
+
+// Frozen armies (king already captured) sit on the board as static obstacles:
+// they block movement like any occupied square but can never themselves be
+// captured or removed.
+function canCapture(moverColor, occupant){
+  return isEnemyColor(moverColor, occupant.color) && game.alive[occupant.color];
+}
+
+const game = {
+  board: {},
+  turnIndex: 0,
+  alive: { Y: true, B: true, R: true, K: true },
+  selected: null,
+  legalMoves: [],
+  over: false,
+  playerColor: null,
+  difficulty: 'easy',
+  moveCount: 0,
+  moveLog: []
+};
+
+function key(r,c){ return r + ',' + c; }
+
+function squareLabel(r,c){
+  if(r >= 0 && r <= 7 && c >= 0 && c <= 7){
+    return String.fromCharCode(97 + c) + (8 - r);
+  }
+  if(r === 0 && c === -1) return 'Y-throne';
+  if(r === -1 && c === 7) return 'B-throne';
+  if(r === 7 && c === 8) return 'R-throne';
+  if(r === 8 && c === 0) return 'K-throne';
+  return r + ',' + c;
+}
+
+function currentColor(){ return TURN_ORDER[game.turnIndex]; }
+
+function setupBoard(){
+  const board = {};
+  const put = (r,c,color,type) => { board[r+','+c] = { color, type }; };
+
+  function placeArmy(color, king, backDir, pawnDir){
+    put(king[0], king[1], color, 'KING');
+    const order = ['KNIGHT','QUEEN','BISHOP','ROOK'];
+    for(let i = 0; i < 4; i++){
+      const r = king[0] + backDir[0]*(i+1);
+      const c = king[1] + backDir[1]*(i+1);
+      put(r, c, color, order[i]);
+      // Pawn type tied to backing piece
+      put(r + pawnDir[0], c + pawnDir[1], color, 'PAWN_'+order[i]);
+    }
+  }
+
+  placeArmy('Y', [0,-1], [0,1], [1,0]);
+  placeArmy('B', [-1,7], [1,0], [0,-1]);
+  placeArmy('R', [7,8], [0,-1], [-1,0]);
+  placeArmy('K', [8,0], [-1,0], [0,1]);
+
+  return board;
+}
+
+function renderBoard(){
+  const board = game.board;
+  const el = document.getElementById('board');
+  el.innerHTML = '';
+
+  const legalDestSet = new Set(game.legalMoves.map(m => key(m.r, m.c) + (m.capture ? '#c' : '#m')));
+
+  for(let r = -1; r <= 8; r++){
+    for(let c = -1; c <= 8; c++){
+      const sq = document.createElement('div');
+      sq.style.gridRow = (r + 2);
+      sq.style.gridColumn = (c + 2);
+
+      if(!isOnBoard(r,c)){
+        sq.className = 'sq off-board';
+        el.appendChild(sq);
+        continue;
+      }
+
+      const light = ((r + c) % 2 + 2) % 2 === 0;
+      const classes = ['sq', 'on-board', light ? 'light' : 'dark'];
+
+      if(game.selected === key(r,c)) classes.push('selected');
+      if(legalDestSet.has(key(r,c) + '#m')) classes.push('legal-move');
+      if(legalDestSet.has(key(r,c) + '#c')) classes.push('legal-capture');
+
+      sq.className = classes.join(' ');
+      sq.dataset.r = r;
+      sq.dataset.c = c;
+
+      const piece = board[key(r,c)];
+      if(piece){
+        const p = document.createElement('div');
+        p.className = 'piece' + (game.alive[piece.color] ? '' : ' frozen');
+        p.textContent = getUnicodePiece(piece.type);
+        p.dataset.color = piece.color;
+        sq.appendChild(p);
+      }
+      el.appendChild(sq);
+    }
+  }
+}
+
+function pawnTypeLabel(type){
+  const backing = type.substring(5);
+  const names = { QUEEN: "Queen's Pawn", BISHOP: "Bishop's Pawn", KNIGHT: "Knight's Pawn", ROOK: "Rook's Pawn" };
+  return names[backing] || 'Pawn';
+}
+
+function pieceTooltip(piece){
+  const colorLabel = COLOR_MAP[piece.color].label;
+  let label;
+  if(piece.type.startsWith('PAWN_')){
+    label = colorLabel + ' ' + pawnTypeLabel(piece.type);
+  } else {
+    const niceType = piece.type.charAt(0) + piece.type.slice(1).toLowerCase();
+    label = colorLabel + ' ' + niceType;
+  }
+  if(!game.alive[piece.color]) label += ' (Frozen - King captured)';
+  return label;
+}
+
+function hidePieceTooltip(){
+  const tip = document.getElementById('pieceTooltip');
+  if(tip) tip.classList.remove('visible');
+}
+
+function wirePieceTooltip(){
+  const boardEl = document.getElementById('board');
+  const tip = document.getElementById('pieceTooltip');
+  if(!boardEl || !tip) return;
+  let touchHideTimer = null;
+
+  function showFor(sqEl, x, y){
+    const r = Number(sqEl.dataset.r), c = Number(sqEl.dataset.c);
+    const piece = game.board[key(r,c)];
+    if(!piece){ hidePieceTooltip(); return; }
+    tip.textContent = pieceTooltip(piece);
+    tip.style.left = Math.max(4, x + 16) + 'px';
+    tip.style.top = Math.max(4, y + 16) + 'px';
+    tip.classList.add('visible');
+  }
+
+  boardEl.addEventListener('mousemove', e => {
+    const pieceEl = e.target.closest('.piece');
+    const sqEl = pieceEl ? pieceEl.closest('.sq') : null;
+    if(!pieceEl || !sqEl){ hidePieceTooltip(); return; }
+    showFor(sqEl, e.clientX, e.clientY);
+  });
+
+  boardEl.addEventListener('mouseleave', hidePieceTooltip);
+
+  // Touch devices don't get hover events, so show a brief tap-triggered label
+  // instead (positioned above the finger so it isn't hidden by it), and make
+  // sure it can never get stuck on screen.
+  boardEl.addEventListener('touchstart', e => {
+    const touch = e.touches[0];
+    if(!touch) return;
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const pieceEl = el ? el.closest('.piece') : null;
+    const sqEl = pieceEl ? pieceEl.closest('.sq') : null;
+    clearTimeout(touchHideTimer);
+    if(!pieceEl || !sqEl){ hidePieceTooltip(); return; }
+    showFor(sqEl, touch.clientX - 16, Math.max(10, touch.clientY - 60));
+    touchHideTimer = setTimeout(hidePieceTooltip, 1600);
+  }, { passive: true });
+
+  document.addEventListener('touchstart', e => {
+    if(!boardEl.contains(e.target)){ clearTimeout(touchHideTimer); hidePieceTooltip(); }
+  }, { passive: true });
+}
+
+function getUnicodePiece(type){
+  const baseType = type.startsWith('PAWN_') ? 'PAWN' : type;
+  const map = {
+    'KING': '♔',
+    'QUEEN': '♕',
+    'ROOK': '♖',
+    'BISHOP': '♗',
+    'KNIGHT': '♘',
+    'PAWN': '♙'
+  };
+  return map[baseType] || '·';
+}
+
+// SOUND
+let audioCtx = null;
+function initAudio(){ if(!audioCtx){ try{ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } }
+function beep(freq, dur, type, vol){
+  if(!audioCtx) return;
+  try{
+    const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+    osc.type = type || 'square'; osc.frequency.value = freq;
+    gain.gain.setValueAtTime(vol || 0.05, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + dur);
+  }catch(e){}
+}
+function sndClick(){ beep(700, 0.03, 'square', 0.03); }
+function sndMove(){ beep(523, 0.08, 'square'); }
+function sndCapture(){ beep(196, 0.12, 'sawtooth', 0.07); setTimeout(()=>beep(146, 0.16, 'sawtooth', 0.07), 90); }
+function sndKingCapture(){
+  beep(150, 0.28, 'sawtooth', 0.1);
+  setTimeout(()=>beep(120, 0.3, 'sawtooth', 0.11), 160);
+  setTimeout(()=>beep(90, 0.4, 'sawtooth', 0.12), 340);
+  setTimeout(()=>beep(60, 0.5, 'square', 0.1), 560);
+}
+function sndWin(){ [523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,0.18,'square',0.06), i*140)); }
+function sndPromote(){ [392,523,659,880].forEach((f,i)=>setTimeout(()=>beep(f,0.11,'triangle',0.07), i*80)); }
+function sndDraw(){ [440,440].forEach((f,i)=>setTimeout(()=>beep(f,0.2,'triangle',0.05), i*220)); }
+
+// MOVE GENERATION
+function slideMoves(r, c, color, dirs, board){
+  board = board || game.board;
+  const moves = [];
+  for(const [dr,dc] of dirs){
+    let nr = r + dr, nc = c + dc;
+    while(isOnBoard(nr,nc)){
+      const occupant = board[key(nr,nc)];
+      if(!occupant){
+        moves.push({ r: nr, c: nc, capture: false });
+      } else {
+        if(canCapture(color, occupant)) moves.push({ r: nr, c: nc, capture: true });
+        break;
+      }
+      nr += dr; nc += dc;
+    }
+  }
+  return moves;
+}
+
+function stepMoves(r, c, color, offsets, board){
+  board = board || game.board;
+  const moves = [];
+  for(const [dr,dc] of offsets){
+    const nr = r + dr, nc = c + dc;
+    if(!isOnBoard(nr,nc)) continue;
+    const occupant = board[key(nr,nc)];
+    if(!occupant) moves.push({ r: nr, c: nc, capture: false });
+    else if(canCapture(color, occupant)) moves.push({ r: nr, c: nc, capture: true });
+  }
+  return moves;
+}
+
+const ORTHO = [[1,0],[-1,0],[0,1],[0,-1]];
+const DIAG = [[1,1],[1,-1],[-1,1],[-1,-1]];
+const ALL8 = ORTHO.concat(DIAG);
+const KNIGHT_OFFSETS = [[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]];
+
+function pawnMoves(r, c, color, board){
+  board = board || game.board;
+  const moves = [];
+  const [fr, fc] = FORWARD[color];
+  const fwdR = r + fr, fwdC = c + fc;
+  if(isOnBoard(fwdR, fwdC) && !board[key(fwdR, fwdC)]){
+    moves.push({ r: fwdR, c: fwdC, capture: false });
+  }
+  // Diag captures
+  const diag1 = [r + fr + fc, c + fc - fr];
+  const diag2 = [r + fr - fc, c + fc + fr];
+  for(const [dr,dc] of [diag1, diag2]){
+    if(!isOnBoard(dr,dc)) continue;
+    const occupant = board[key(dr,dc)];
+    if(occupant && canCapture(color, occupant)) moves.push({ r: dr, c: dc, capture: true });
+  }
+  return moves;
+}
+
+function getLegalMoves(r, c, board){
+  board = board || game.board;
+  const piece = board[key(r,c)];
+  if(!piece) return [];
+  if(!game.alive[piece.color]) return []; // frozen army cannot move or attack
+
+  const pieceType = piece.type.startsWith('PAWN_') ? 'PAWN' : piece.type;
+  
+  switch(pieceType){
+    case 'KING':   return stepMoves(r, c, piece.color, ALL8, board);
+    case 'QUEEN':  
+      const queenLeaps = [[2,0],[0,2],[-2,0],[0,-2], [2,2],[2,-2],[-2,2],[-2,-2]];
+      return stepMoves(r, c, piece.color, queenLeaps, board);
+    case 'ROOK':   return slideMoves(r, c, piece.color, ORTHO, board);
+    case 'BISHOP': return slideMoves(r, c, piece.color, DIAG, board);
+    case 'KNIGHT': return stepMoves(r, c, piece.color, KNIGHT_OFFSETS, board);
+    case 'PAWN':   return pawnMoves(r, c, piece.color, board);
+    default: return [];
+  }
+}
+
+function armyHasAnyMove(color){
+  for(const k in game.board){
+    const piece = game.board[k];
+    if(piece.color !== color) continue;
+    const [r,c] = k.split(',').map(Number);
+    if(getLegalMoves(r,c).length > 0) return true;
+  }
+  return false;
+}
+
+// AI
+function cloneBoard(board){
+  const nb = {};
+  for(const k in board) nb[k] = { color: board[k].color, type: board[k].type };
+  return nb;
+}
+
+function isSquareAttacked(board, r, c, byColors){
+  for(const k in board){
+    const p = board[k];
+    if(!byColors.has(p.color)) continue;
+    const [pr,pc] = k.split(',').map(Number);
+    const moves = getLegalMoves(pr, pc, board);
+    if(moves.some(m => m.r === r && m.c === c)) return true;
+  }
+  return false;
+}
+
+function isColorCpu(color){
+  return game.playerColor !== null && color !== game.playerColor;
+}
+
+function aiSelectMove(color, difficulty){
+  const board = game.board;
+  const allMoves = [];
+  for(const k in board){
+    const p = board[k];
+    if(p.color !== color) continue;
+    const [r,c] = k.split(',').map(Number);
+    for(const m of getLegalMoves(r,c,board)){
+      allMoves.push({ fr: r, fc: c, tr: m.r, tc: m.c });
+    }
+  }
+  if(allMoves.length === 0) return null;
+
+  const nonTeam = new Set(Object.keys(TEAM).filter(c => c !== color && TEAM[c] !== TEAM[color] && game.alive[c]));
+  const riskMultiplier = difficulty === 'medium' ? 6 : 10;
+
+  let best = null, bestScore = -Infinity;
+  for(const m of allMoves){
+    const target = board[key(m.tr, m.tc)];
+    let score = target ? PIECE_VALUE[target.type] * 10 : 0;
+
+    const nb = cloneBoard(board);
+    const mover = nb[key(m.fr, m.fc)];
+    delete nb[key(m.fr, m.fc)];
+    nb[key(m.tr, m.tc)] = mover;
+
+    if(isSquareAttacked(nb, m.tr, m.tc, nonTeam)){
+      score -= PIECE_VALUE[mover.type] * riskMultiplier;
+    }
+
+    if(difficulty === 'hard' || difficulty === 'grandmaster'){
+      score += (4 - (Math.abs(m.tr - 3.5) + Math.abs(m.tc - 3.5)) / 2) * 0.3;
+    }
+
+    score += Math.random() * (difficulty === 'grandmaster' ? 0.4 : (difficulty === 'hard' ? 1 : 3));
+
+    if(score > bestScore){ bestScore = score; best = m; }
+  }
+  return best;
+}
+
+let speedMode = false;
+
+function maybeRunCpuTurn(){
+  if(game.over) return;
+  const color = currentColor();
+  if(!isColorCpu(color)) return;
+  setTimeout(()=>{
+    if(game.over || currentColor() !== color) return;
+    const move = aiSelectMove(color, game.difficulty);
+    if(move) makeMove(move.fr, move.fc, move.tr, move.tc);
+    else advanceAndContinue();
+  }, speedMode ? 200 : 1400);
+}
+
+function advanceAndContinue(){
+  advanceTurn();
+  renderBoard();
+  updateTurnIndicator();
+  maybeRunCpuTurn();
+}
+
+// TURN FLOW
+function advanceTurn(){
+  for(let i = 0; i < TURN_ORDER.length; i++){
+    game.turnIndex = (game.turnIndex + 1) % TURN_ORDER.length;
+    const color = TURN_ORDER[game.turnIndex];
+    if(game.alive[color] && armyHasAnyMove(color)) return;
+    if(game.alive[color] && !armyHasAnyMove(color)) continue;
+  }
+}
+
+function colorHasPieceType(color, type){
+  for(const k in game.board){
+    const p = game.board[k];
+    if(p.color === color && p.type === type) return true;
+  }
+  return false;
+}
+
+function eliminate(color){
+  // A captured king's army FREEZES rather than vanishing: its pieces remain
+  // on the board (still capturable by anyone) but can no longer move.
+  game.alive[color] = false;
+}
+
+function teamAlive(team){
+  return Object.keys(TEAM).some(c => TEAM[c] === team && game.alive[c]);
+}
+
+const MAX_SESSION_LOG_ENTRIES = 30;
+let sessionLog = [];
+function saveSessionLog(){ try{ localStorage.setItem('enochian_sessionlog_v1', JSON.stringify(sessionLog)); }catch(e){} }
+function loadSessionLog(){ try{ const raw = localStorage.getItem('enochian_sessionlog_v1'); if(raw) sessionLog = JSON.parse(raw) || []; }catch(e){} }
+
+function addSessionEntry(resultClass, resultLabel, yourColorLabel, winningTeamLabel, difficultyLabel){
+  sessionLog.unshift({
+    result: resultLabel,
+    resultClass: resultClass,
+    yourColor: yourColorLabel,
+    winningTeam: winningTeamLabel,
+    difficulty: difficultyLabel,
+    date: new Date().toLocaleString()
+  });
+  if(sessionLog.length > MAX_SESSION_LOG_ENTRIES) sessionLog.pop();
+  saveSessionLog();
+
+  // Report into the launcher's Cross-Game Statistics panel, if we're
+  // embedded there (this file is also opened standalone for testing).
+  try{
+    if(window.parent && window.parent !== window && typeof window.parent.addGameSession === 'function'){
+      window.parent.addGameSession('enochian', {
+        result: resultClass === 'win' ? 'WIN' : (resultClass === 'loss' ? 'LOSS' : 'DRAW'),
+        color: yourColorLabel,
+        winningTeam: winningTeamLabel,
+        difficulty: difficultyLabel
+      });
+    }
+  }catch(e){ /* not embedded, or parent unreachable */ }
+}
+
+function renderSessionLog(){
+  const el = document.getElementById('sessionLogContainer');
+  if(!el) return;
+  if(sessionLog.length === 0){
+    el.innerHTML = '<div style="text-align:center; padding:20px; color:var(--parchment); opacity:0.7;">No sessions recorded yet. Start playing to begin building your legend.</div>';
+    return;
+  }
+  el.innerHTML = '<div style="display:flex; flex-direction:column; gap:12px; margin-top:14px;">' + sessionLog.map(entry => {
+    const resultEmoji = entry.resultClass === 'win' ? '✔' : (entry.resultClass === 'draw' ? '☯' : '✘');
+    return `
+    <div class="session-entry ${entry.resultClass}" style="background:var(--panel2); border:3px solid var(--ink); box-shadow:3px 3px 0 var(--ink); padding:14px; display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:12px;">
+      <div style="display:flex; flex-direction:column;">
+        <div style="font-family:'Press Start 2P', monospace; font-size:9px; color:var(--gold-bright); margin-bottom:4px;">Result</div>
+        <div style="font-size:14px; color:var(--parchment); line-height:1.4;">${resultEmoji} ${entry.result}</div>
+      </div>
+      <div style="display:flex; flex-direction:column;">
+        <div style="font-family:'Press Start 2P', monospace; font-size:9px; color:var(--gold-bright); margin-bottom:4px;">Your Color</div>
+        <div style="font-size:14px; color:var(--parchment); line-height:1.4;">${entry.yourColor}</div>
+      </div>
+      <div style="display:flex; flex-direction:column;">
+        <div style="font-family:'Press Start 2P', monospace; font-size:9px; color:var(--gold-bright); margin-bottom:4px;">Winner</div>
+        <div style="font-size:14px; color:var(--parchment); line-height:1.4;">${entry.winningTeam}</div>
+      </div>
+      <div style="display:flex; flex-direction:column;">
+        <div style="font-family:'Press Start 2P', monospace; font-size:9px; color:var(--gold-bright); margin-bottom:4px;">Difficulty</div>
+        <div style="font-size:14px; color:var(--parchment); line-height:1.4;">${entry.difficulty}</div>
+      </div>
+      <div style="font-size:11px; opacity:0.6; margin-top:8px; grid-column:1/-1;">${entry.date}</div>
+    </div>
+    `;
+  }).join('') + '</div>';
+}
+
+function checkWin(){
+  const team1 = teamAlive(1), team2 = teamAlive(2);
+  if(!team1 || !team2){
+    game.over = true;
+    const winningTeam = team1 ? 1 : 2;
+    const winnerLabel = winningTeam === 1 ? '🌍 Team Sulphur' : '🧂 Team Salt';
+    setStatus('🏆 ' + winnerLabel + ' win! Both enemy kings have fallen.', true);
+    sndWin();
+
+    let resultClass, resultLabel, yourColorLabel;
+    if(game.playerColor){
+      const won = TEAM[game.playerColor] === winningTeam;
+      resultClass = won ? 'win' : 'loss';
+      resultLabel = won ? 'WIN' : 'LOSS';
+      yourColorLabel = COLOR_MAP[game.playerColor].emoji + ' ' + COLOR_MAP[game.playerColor].label;
+    } else {
+      resultClass = 'draw';
+      resultLabel = 'GAME OVER';
+      yourColorLabel = 'Hotseat';
+    }
+    const winningTeamLabel = winningTeam === 1 ? '🌍 Team Sulphur' : '🧂 Team Salt';
+    addSessionEntry(resultClass, resultLabel, yourColorLabel, winningTeamLabel, cap(game.difficulty));
+
+    showGameOverOverlay(resultClass, winnerLabel, winningTeam);
+    return true;
+  }
+  return false;
+}
+
+function showGameOverOverlay(resultClass, winnerLabel, winningTeam){
+  hidePieceTooltip();
+  const titleEl = document.getElementById('gameOverTitle');
+  const msgEl = document.getElementById('gameOverMessage');
+  const overlay = document.getElementById('gameOverOverlay');
+
+  let title = '🏆 VICTORY!';
+  if(game.playerColor){
+    const won = TEAM[game.playerColor] === winningTeam;
+    title = won ? '🏆 VICTORY!' : '💀 DEFEAT';
+  }
+  titleEl.textContent = title;
+  msgEl.innerHTML = winnerLabel + ' has captured both enemy kings and claims the board!';
+  overlay.classList.add('visible');
+}
+
+function hideGameOverOverlay(){
+  document.getElementById('gameOverOverlay').classList.remove('visible');
+}
+
+function cap(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
+
+function setStatus(html, isWin){
+  const el = document.getElementById('statusMsg');
+  el.innerHTML = html || '';
+  el.classList.toggle('win', !!isWin);
+}
+
+function updateTurnIndicator(){
+  const el = document.getElementById('turnIndicator');
+  const speedBtn = document.getElementById('speedToggleBtn');
+  if(speedBtn){
+    const showSpeedBtn = !game.over && game.playerColor && !game.alive[game.playerColor];
+    speedBtn.style.display = showSpeedBtn ? 'inline-block' : 'none';
+    speedBtn.textContent = speedMode ? '✓ Regular Speed' : '↯ Fast-Forward';
+  }
+  if(game.over){ el.innerHTML = 'Game Over'; return; }
+  const color = currentColor();
+  const info = COLOR_MAP[color];
+  const youTag = (color === game.playerColor) ? '<span style="color:var(--gold-bright); margin-left:6px;">(You)</span>' : '';
+  el.innerHTML = '<span class="swatch" style="background:'+info.css+'"></span>' + info.label + "'s Turn" + youTag;
+}
+
+function updateColorPickerUI(){
+  document.querySelectorAll('.color-pick-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.color === game.playerColor);
+  });
+}
+
+function selectSquare(r, c){
+  game.selected = key(r,c);
+  game.legalMoves = getLegalMoves(r,c);
+}
+
+function clearSelection(){
+  game.selected = null;
+  game.legalMoves = [];
+}
+
+function makeMove(fr, fc, tr, tc){
+  const piece = game.board[key(fr,fc)];
+  const target = game.board[key(tr,tc)];
+  const moverColor = piece.color;
+  const moverLabel = piece.type.startsWith('PAWN_') ? pawnTypeLabel(piece.type) : cap(piece.type.toLowerCase());
+  const fromLabel = squareLabel(fr, fc);
+  const toLabel = squareLabel(tr, tc);
+  let captureNote = '';
+  let kingCaptured = false;
+
+  delete game.board[key(fr,fc)];
+  game.board[key(tr,tc)] = piece;
+  game.moveCount++;
+
+  if(target && target.type === 'KING'){
+    sndKingCapture();
+    kingCaptured = true;
+    captureNote = 'captures the ' + COLOR_MAP[target.color].label + ' King! ' + COLOR_MAP[target.color].label + "'s army freezes";
+    eliminate(target.color);
+  } else if(target){
+    sndCapture();
+    const targetLabel = target.type.startsWith('PAWN_') ? pawnTypeLabel(target.type) : cap(target.type.toLowerCase());
+    captureNote = 'captures ' + COLOR_MAP[target.color].label + ' ' + targetLabel;
+  } else {
+    sndMove();
+  }
+
+  // Promotion - each pawn is bound to the major/minor piece it started behind
+  // (see setupBoard: PAWN_QUEEN, PAWN_BISHOP, PAWN_KNIGHT, PAWN_ROOK).
+  // It may only become that piece, and only once its side has actually lost
+  // the original of that type. Otherwise it simply stops at the edge.
+  let promotionNote = '';
+  if(piece.type.startsWith('PAWN_')){
+    const [fwr, fwc] = FORWARD[piece.color];
+    if(!isOnBoard(tr + fwr, tc + fwc)){
+      const promoteToType = piece.type.substring(5);
+      if(!colorHasPieceType(piece.color, promoteToType)){
+        piece.type = promoteToType;
+        promotionNote = 'promotes to ' + cap(promoteToType.toLowerCase());
+        sndPromote();
+      }
+    }
+  }
+
+  logMove(moverColor, moverLabel, fromLabel, toLabel, captureNote, promotionNote, !!target);
+
+  clearSelection();
+
+  if(checkWin()){
+    renderBoard();
+    updateTurnIndicator();
+    return;
+  }
+
+  advanceTurn();
+  renderBoard();
+  updateTurnIndicator();
+  maybeRunCpuTurn();
+}
+
+function logMove(color, pieceLabel, fromLabel, toLabel, captureNote, promotionNote, wasCapture){
+  const parts = [pieceLabel, fromLabel + '→' + toLabel];
+  let extra = '';
+  if(captureNote) extra += (extra ? ' ' : '') + captureNote;
+  if(promotionNote) extra += (extra ? ', ' : '') + promotionNote;
+
+  game.moveLog.push({
+    num: game.moveLog.length + 1,
+    color: color,
+    text: parts.join(' '),
+    extra: extra,
+    isCapture: wasCapture
+  });
+  renderMoveLog();
+}
+
+function renderMoveLog(){
+  const el = document.getElementById('moveLog');
+  if(!el) return;
+  if(game.moveLog.length === 0){
+    el.innerHTML = '<div class="move-empty">No moves yet.</div>';
+    return;
+  }
+  el.innerHTML = game.moveLog.map(entry => {
+    const info = COLOR_MAP[entry.color];
+    const extraHtml = entry.extra
+      ? ' <span class="' + (entry.isCapture ? 'move-capture' : '') + '">' + entry.extra + '</span>'
+      : '';
+    return '<div class="move-entry">' +
+      '<span class="move-num">' + entry.num + '.</span>' +
+      '<span class="move-swatch" style="background:' + info.css + '"></span>' +
+      '<span>' + info.label + ' ' + entry.text + extraHtml + '</span>' +
+      '</div>';
+  }).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+function onBoardClick(e){
+  if(game.over) return;
+  const sq = e.target.closest('.sq.on-board');
+  if(!sq) return;
+  const r = Number(sq.dataset.r), c = Number(sq.dataset.c);
+  const color = currentColor();
+  if(isColorCpu(color)) return;
+  const piece = game.board[key(r,c)];
+
+  if(game.selected){
+    const move = game.legalMoves.find(m => m.r === r && m.c === c);
+    if(move){
+      const [fr,fc] = game.selected.split(',').map(Number);
+      makeMove(fr, fc, r, c);
+      return;
+    }
+    if(game.selected === key(r,c)){
+      clearSelection();
+      renderBoard();
+      return;
+    }
+  }
+
+  if(piece && piece.color === color){
+    selectSquare(r, c);
+    renderBoard();
+  } else {
+    clearSelection();
+    renderBoard();
+  }
+}
+
+function resetGame(){
+  game.board = setupBoard();
+  game.turnIndex = 0;
+  game.alive = { Y: true, B: true, R: true, K: true };
+  game.over = false;
+  game.moveCount = 0;
+  game.moveLog = [];
+  speedMode = false;
+  clearSelection();
+  setStatus('');
+  hideGameOverOverlay();
+  hidePieceTooltip();
+  renderBoard();
+  renderMoveLog();
+  updateTurnIndicator();
+  maybeRunCpuTurn();
+}
+
+function startGame(){
+  document.getElementById('startMenu').style.display = 'none';
+  document.getElementById('gamePlayArea').style.display = 'block';
+  resetGame();
+}
+
+function backToMainMenu(){
+  hideGameOverOverlay();
+  hidePieceTooltip();
+  document.getElementById('gamePlayArea').style.display = 'none';
+  document.getElementById('startMenu').style.display = 'block';
+}
+
+function wireTabs(){
+  document.getElementById('tabNav').addEventListener('click', e => {
+    const btn = e.target.closest('.tab-btn');
+    if(!btn) return;
+    
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+
+    if(btn.dataset.tab === 'sessionlog') renderSessionLog();
+  });
+}
+
+function wireColorPicker(){
+  document.getElementById('colorPicker').addEventListener('click', e => {
+    const btn = e.target.closest('.color-pick-btn');
+    if(!btn) return;
+    game.playerColor = (game.playerColor === btn.dataset.color) ? null : btn.dataset.color;
+    updateColorPickerUI();
+  });
+}
+
+function wireDifficultyPicker(){
+  document.getElementById('difficultyPicker').addEventListener('click', e => {
+    const btn = e.target.closest('.choice-btn');
+    if(!btn) return;
+    game.difficulty = btn.dataset.diff;
+    document.querySelectorAll('#difficultyPicker .choice-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+}
+
+function init(){
+  loadSessionLog();
+  wireTabs();
+  wireColorPicker();
+  wireDifficultyPicker();
+
+  document.getElementById('board').addEventListener('click', onBoardClick);
+  wirePieceTooltip();
+  
+  // Wire up start buttons
+  document.querySelectorAll('.color-pick-btn, .choice-btn, .tab-btn, .link-btn').forEach(btn => {
+    btn.addEventListener('click', () => { initAudio(); sndClick(); });
+  });
+
+  const resetBtn = document.getElementById('resetBtn');
+  if(resetBtn) resetBtn.addEventListener('click', () => { initAudio(); sndClick(); backToMainMenu(); });
+
+  const speedToggleBtn = document.getElementById('speedToggleBtn');
+  if(speedToggleBtn) speedToggleBtn.addEventListener('click', () => {
+    initAudio(); sndClick();
+    speedMode = !speedMode;
+    updateTurnIndicator();
+  });
+
+  const startGameBtn = document.getElementById('startGameBtn');
+  if(startGameBtn) startGameBtn.addEventListener('click', () => { initAudio(); sndClick(); startGame(); });
+
+  const playAgainBtn = document.getElementById('playAgainBtn');
+  if(playAgainBtn) playAgainBtn.addEventListener('click', () => { initAudio(); sndClick(); startGame(); });
+
+  const gameOverMenuBtn = document.getElementById('gameOverMenuBtn');
+  if(gameOverMenuBtn) gameOverMenuBtn.addEventListener('click', () => { initAudio(); sndClick(); backToMainMenu(); });
+
+  // Launcher integration
+  const isLaunched = new URLSearchParams(window.location.search).get('launcher') === 'true';
+  const backBtn = document.getElementById('launcherBackBtn');
+  if(isLaunched){
+    backBtn.classList.remove('hidden');
+    backBtn.addEventListener('click', () => {
+      const launcherPath = sessionStorage.getItem('launcherPath') || './chess-eternal.html';
+      window.location.href = launcherPath;
+    });
+  }
+
+  // Start with menu visible
+  document.getElementById('startMenu').style.display = 'block';
+  document.getElementById('gamePlayArea').style.display = 'none';
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

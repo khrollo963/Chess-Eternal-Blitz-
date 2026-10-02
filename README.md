@@ -7,7 +7,7 @@
 **Two forgotten chess variants. One pixel-perfect arcade cabinet. Zero dependencies.**
 
 [![Play online](https://img.shields.io/badge/PLAY-ONLINE-ff9d00?style=for-the-badge)](https://khrollo963.github.io/Chess-Eternal-Blitz-/)
-![HTML](https://img.shields.io/badge/HTML-single%20file-e34f26?style=flat-square&logo=html5&logoColor=white)
+![HTML](https://img.shields.io/badge/HTML-three%20pages-e34f26?style=flat-square&logo=html5&logoColor=white)
 ![CSS](https://img.shields.io/badge/CSS-retro%20arcade-1572b6?style=flat-square&logo=css3&logoColor=white)
 ![JavaScript](https://img.shields.io/badge/JavaScript-vanilla-f7df1e?style=flat-square&logo=javascript&logoColor=black)
 ![Dependencies](https://img.shields.io/badge/dependencies-zero-5bca81?style=flat-square)
@@ -20,7 +20,7 @@
 
 ## 💡 What is this?
 
-A single self-contained HTML file that resurrects two of history's strangest chess offshoots — a dice-driven four-king battle royale and a Victorian occult team variant — and skins them both in glowing, scanline-soaked retro-arcade style. No installs, no build step, no backend. Open it and you're playing.
+Three readable HTML pages that resurrect two of history's strangest chess offshoots — a dice-driven four-king battle royale and a Victorian occult team variant — and skins them both in glowing, scanline-soaked retro-arcade style. No installs, no build step, no backend. Serve the pages over HTTP and you're playing.
 
 ## 📋 Table of contents
 
@@ -36,7 +36,13 @@ A single self-contained HTML file that resurrects two of history's strangest che
 
 ## 🚀 Quick start
 
-**[Play Chess Eternal in your browser](https://khrollo963.github.io/Chess-Eternal-Blitz-/)** on desktop or mobile. To play locally, open [`index.html`](index.html) in a browser. There are no packages to install or commands to run.
+**[Play Chess Eternal in your browser](https://khrollo963.github.io/Chess-Eternal-Blitz-/)** on desktop or mobile. For a local preview, serve the repository root with a static HTTP server and open its `index.html` URL. Keep all three pages on the same origin so the games can share the launcher's navigation and statistics bridge. There are no project dependencies to install.
+
+The source is now three pages: [`index.html`](index.html) is the launcher, [`chaturaji.html`](chaturaji.html) is Four Kings Arcade, and [`enochian.html`](enochian.html) is Golden Dawn Chess. The launcher loads each game once and keeps it mounted when you return to the menu or switch games. The source `index.html` is no longer self-contained; opening it alone or through `file://` is not the supported preview path.
+
+For a portable ZIP, put `index.html`, `chaturaji.html`, and `enochian.html` together at the ZIP root. Extract them together and serve that folder over HTTP. Inline game artwork remains embedded in its game page; the README images are optional for play. A generated single-HTML export is planned for Task 14 and is not implemented yet.
+
+To check this migration with an existing Node.js installation, run `node --test tests/client-layout.test.mjs` and `node scripts/check-client-preservation.mjs`. `node scripts/extract-game-pages.mjs` retrieves the original game payloads from the recorded Git revision; it is safe to rerun on identical pages and refuses to overwrite edited game source.
 
 ---
 
@@ -80,7 +86,7 @@ A single retro arcade menu ties both games together, complete with a **Cross-Gam
 
 ## 🛠️ Built With
 
-Just the essentials — **HTML, CSS, and vanilla JavaScript**. No frameworks, no package manager, no build pipeline. The entire experience — two full games, an AI opponent for each, sound synthesis, and a shared stats system — lives in one portable file.
+Just the essentials — **HTML, CSS, and vanilla JavaScript**. No frameworks, no package manager, no build pipeline. The entire experience — two full games, an AI opponent for each, sound synthesis, and a shared stats system — lives in three readable HTML pages, with the original inline artwork retained.
 
 ---
 
