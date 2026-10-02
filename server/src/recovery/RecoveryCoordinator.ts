@@ -8,6 +8,7 @@ export interface RecoveryRecord extends LobbyRecord {
   absence?: Partial<Record<Color, { usedMs: number; departedAt: number | null }>>;
   /** Departures already expired at the last service observation retain their consequence. */
   expiredDepartures?: Color[];
+  pendingSettlement?: boolean;
   service?: { instanceId: string; observedAt: number };
   recovery?: {
     previousPhase: Phase; cutoff: number; startedAt: number; deadline: number;
@@ -69,6 +70,7 @@ export class RecoveryCoordinator {
           if (record.mode === 'ranked' && expired.length) {
             record.phase = 'void'; record.terminalResult = { kind: 'void', winningTeam: null, reason: 'abandonment' };
             record.expiredDepartures = expired;
+            record.pendingSettlement = true;
             record.recoveryDeadline = null;
             await this.save(record, { type: 'departure_expired_before_outage', offenders: expired, cutoff });
             return record;
@@ -143,7 +145,7 @@ export class RecoveryCoordinator {
     }
     throw new Error('stale_revision');
   }
-  async depart(matchId: string, connectionId: string): Promise<CommandResult | null> {
+  async depart(matchId: string, connectionId: string, intentional = false): Promise<CommandResult | null> {
     for (let attempt = 0; attempt < 16; attempt++) {
       const record = await this.ownedRecord(matchId);
       if (!record.recovery) return null;
@@ -153,6 +155,18 @@ export class RecoveryCoordinator {
       record.recovery.returnedOwners = record.recovery.returnedOwners.filter(id => id !== ownerId);
       const color = COLORS.find(candidate => record.seats[candidate].ownerId === ownerId)!;
       record.seats[color].connected = false;
+      if (intentional && record.mode === 'ranked') {
+        record.phase = 'void'; record.terminalResult = { kind: 'void', winningTeam: null, reason: 'abandonment' };
+        record.expiredDepartures = [color]; record.pendingSettlement = true;
+        record.recoveryDeadline = null; delete record.recovery;
+      } else if (intentional) {
+        record.seats[color].controller = 'bot'; record.seats[color].disconnectDeadline = null;
+        record.absence ??= {}; record.absence[color] = { usedMs: 180000, departedAt: null };
+        record.recovery.requiredOwners = record.recovery.requiredOwners.filter(id => id !== ownerId);
+        if (record.recovery.requiredOwners.every(id => record.recovery!.returnedOwners.includes(id))) {
+          record.phase = 'active'; record.recoveryDeadline = null; delete record.recovery;
+        }
+      }
       try { return await this.save(record, { type: 'service_return_interrupted', color }); }
       catch (error) { if (!(error instanceof Error) || error.message !== 'stale_revision') throw error; }
     }
@@ -163,6 +177,7 @@ export class RecoveryCoordinator {
     const now = this.now();
     if (record.mode === 'ranked') {
       record.phase = 'void'; record.terminalResult = { kind: 'void', winningTeam: null, reason: 'service_outage' };
+      record.pendingSettlement = true;
       // Ranked settlement consumes this reason with no abandonment offenders.
     } else {
       record.phase = 'active';

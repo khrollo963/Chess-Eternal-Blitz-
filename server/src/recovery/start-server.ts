@@ -26,8 +26,10 @@ export async function startServer(env: Record<string, string | undefined>, optio
       async connect(matchId, credential, connectionId) {
         await durable.recovery.expire(matchId);
         await app!.casual!.expire(matchId);
+        await app!.ranked!.expire(matchId);
         const latest = await durable.store.load(matchId) as RecoveryRecord | null;
-        if (!latest?.recovery && latest?.phase !== 'finished' && latest?.phase !== 'void') return app!.casual!.connect(matchId, credential, connectionId);
+        if (!latest?.recovery && latest?.phase !== 'finished' && latest?.phase !== 'void') return latest?.mode === 'ranked'
+          ? app!.ranked!.connect(matchId, credential, connectionId) : app!.casual!.connect(matchId, credential, connectionId);
         const auth = await app!.lobby!.authenticate(matchId, credential);
         const result = await durable.recovery.recover(matchId, credential, connectionId);
         return { actor: { actorId: auth.ownerId, seat: auth.color, controller: 'human' }, snapshot: result.snapshot! };
@@ -35,7 +37,8 @@ export async function startServer(env: Record<string, string | undefined>, optio
       async depart(matchId, connectionId, intentional) {
         // Server draining or a lost lease is infrastructure failure, never intentional Leave.
         if (!ready) return true;
-        return (await durable.recovery.depart(matchId, connectionId)) !== null || await app!.casual!.depart(matchId, connectionId, intentional);
+        return (await durable.recovery.depart(matchId, connectionId, intentional)) !== null ||
+          await app!.ranked!.depart(matchId, connectionId, intentional) || await app!.casual!.depart(matchId, connectionId, intentional);
       },
       async preflight(matchId) { await durable.recovery.expireLobby(matchId); await durable.recovery.expire(matchId); },
     } : undefined,
@@ -55,6 +58,7 @@ export async function startServer(env: Record<string, string | undefined>, optio
         const room = await matchMaker.createRoom('enochian', { matchId, creationPermit });
         return room.roomId;
       });
+      await durable.settlePending();
       ready = durable.runtime.healthy;
       let busy = false;
       maintenance = setInterval(() => {
@@ -70,6 +74,7 @@ export async function startServer(env: Record<string, string | undefined>, optio
               if (latest.phase === 'void' && room && room.clients.length === 0) await room.disconnect();
             }
           }
+          await durable.settlePending();
         })().catch(error => {
           // Another accepted action winning CAS is normal; the next tick rechecks.
           if (error instanceof Error && error.message === 'stale_revision') return;

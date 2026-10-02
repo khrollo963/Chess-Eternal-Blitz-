@@ -8,6 +8,7 @@ import type { ActorContext } from '../domain/commands.js';
 import { publicSnapshot, type PublicSnapshot } from '../domain/match.js';
 import { BotScheduler, type BotTimer } from '../domain/bots.js';
 import type { CasualService } from '../domain/CasualService.js';
+import type { RankedService } from '../domain/RankedService.js';
 import { ExchangeService, parseExchangeCommand } from '../domain/ExchangeService.js';
 
 function safeDomainError(error: unknown): Error {
@@ -34,6 +35,7 @@ export interface RoomScaffoldOptions {
   connections?: ConnectionHooks;
   verifyAuth?: (authorization: string | undefined) => Promise<VerifiedAuth | undefined>;
   casual?: CasualService;
+  ranked?: RankedService;
   clock?: () => number;
   botOptions?: { scheduler?: BotTimer; random?: () => number; maxNodes?: number; delayMs?: number };
 }
@@ -57,6 +59,7 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
   private verifyAuth?: (authorization: string | undefined) => Promise<VerifiedAuth | undefined>;
   private droppedSessions = new Set<string>();
   private casual?: CasualService;
+  private ranked?: RankedService;
   private bots?: BotScheduler;
   private exchange?: ExchangeService;
   private maintenance?: ReturnType<typeof setInterval>;
@@ -70,6 +73,7 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
     this.delegates = options.delegates;
     this.isReady = options.isReady; this.connections = options.connections; this.verifyAuth = options.verifyAuth;
     this.casual = options.casual;
+    this.ranked = options.ranked;
     this.reconnectionSeconds = options.reconnectionSeconds ?? 5;
     this.setState(new EnochianState());
     this.state.phase = "lobby";
@@ -218,6 +222,7 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
   private async preflight() {
     await this.connections?.preflight?.(this.matchId!);
     await this.casual?.expire(this.matchId!);
+    await this.ranked?.expire(this.matchId!);
     await this.exchange?.expire(this.matchId!);
   }
   private async maintain() {

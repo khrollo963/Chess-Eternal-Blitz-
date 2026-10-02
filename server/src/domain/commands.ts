@@ -81,7 +81,10 @@ export class CommandProcessor {
       invalidateExchange(next, 'move');
       recordKingCaptures(next, successor.events);
       const outcome = this.engine.outcome(next.engine);
-      if (outcome) { next.phase = 'finished'; next.terminalResult = { kind: 'victory', winningTeam: outcome.winningTeam, reason: null }; }
+      if (outcome) {
+        next.phase = 'finished'; next.terminalResult = { kind: 'victory', winningTeam: outcome.winningTeam, reason: null };
+        if (next.mode === 'ranked') (next as typeof next & { pendingSettlement?: boolean }).pendingSettlement = true;
+      }
       snapshot = publicSnapshot(next);
       result = { ok: true, code: 'accepted', retryable: false, requestId, snapshot };
       const commit = await this.store.commit({ matchId, expectedRevision: record.revision, next, events: successor.events,

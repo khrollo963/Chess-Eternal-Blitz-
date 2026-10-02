@@ -198,3 +198,26 @@ test('early return after outage keeps already consumed absence without charging 
   expect(returned.absence?.R).toEqual({ usedMs: 50000, departedAt: null });
   expect(returned.phase).toBe('active'); expect(returned.recovery).toBeUndefined();
 });
+
+test('intentional ranked leave during service recovery is an individual abandonment', async () => {
+  const fixture = await setup('ranked');
+  const coordinator = new RecoveryCoordinator({ store: fixture.raw, instanceId: 'new', clock: fixture.clock });
+  await coordinator.claim(fixture.first.matchId, 1000, 'new-room');
+  await coordinator.recover(fixture.first.matchId, fixture.first.credential, 'returned');
+  await coordinator.depart(fixture.first.matchId, 'returned', true);
+  const record = await fixture.raw.load(fixture.first.matchId) as RecoveryRecord;
+  expect(record.terminalResult?.reason).toBe('abandonment');
+  expect(record.expiredDepartures).toEqual(['R']); expect(record.pendingSettlement).toBe(true);
+});
+
+test('intentional casual leave during service recovery releases its return requirement permanently', async () => {
+  const fixture = await setup();
+  const coordinator = new RecoveryCoordinator({ store: fixture.raw, instanceId: 'new', clock: fixture.clock });
+  await coordinator.claim(fixture.first.matchId, 1000, 'new-room');
+  await coordinator.recover(fixture.first.matchId, fixture.first.credential, 'returned');
+  await coordinator.depart(fixture.first.matchId, 'returned', true);
+  await coordinator.recover(fixture.first.matchId, fixture.invites[1]!.credential, 'other');
+  const record = await fixture.raw.load(fixture.first.matchId) as RecoveryRecord;
+  expect(record.phase).toBe('active'); expect(record.seats.R.controller).toBe('bot');
+  expect(record.absence?.R).toEqual({ usedMs: 180000, departedAt: null });
+});

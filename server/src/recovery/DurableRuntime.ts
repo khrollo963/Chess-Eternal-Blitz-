@@ -7,6 +7,7 @@ import { FencedStore } from './FencedStore.js';
 import { RecoveryCoordinator, type RecoveryRecord } from './RecoveryCoordinator.js';
 import { PostgresRuntime } from './postgres-runtime.js';
 import type { LobbyService } from '../domain/lobby.js';
+import { PostgresRankedSettlement } from '../storage/PostgresRankedSettlement.js';
 
 /** Startup validates an operator-managed schema; it never creates online resources. */
 export async function openDurableRuntime(env: Record<string, string | undefined>, onLost?: () => void | Promise<void>, options: { storeHooks?: PostgresStoreOptions['hooks'] } = {}) {
@@ -21,8 +22,13 @@ export async function openDurableRuntime(env: Record<string, string | undefined>
     const rawStore = new PostgresMatchStore(pool, { schema, hooks: options.storeHooks });
     const store = new FencedStore(rawStore, instanceId);
     const recovery = new RecoveryCoordinator({ store: rawStore, instanceId });
+    const settlement = new PostgresRankedSettlement(pool, { schema });
     return {
-      pool, store, rawStore, recovery, runtime, instanceId,
+      pool, store, rawStore, recovery, settlement, runtime, instanceId,
+      async settlePending() {
+        if (!runtime.healthy) throw new Error('Durable multiplayer unavailable');
+        for (const matchId of await settlement.listPending()) await settlement.settle(matchId, Date.now());
+      },
       async rehydrate(lobby: LobbyService, createRoom: (matchId: string, permit: string) => Promise<string>) {
         for (const original of await rawStore.listRecoverable()) {
           const record = original as RecoveryRecord;
