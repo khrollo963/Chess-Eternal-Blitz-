@@ -1,6 +1,6 @@
 <div align="center">
 
-<h1><a href="https://khrollo963.github.io/Chess-Eternal-Blitz-/">⚔️ Chess Eternal: Four Kings &amp; Golden Dawn — PLAY HERE ⚡</a></h1>
+<h1><a href="https://game-server-production-5449.up.railway.app/index.html">⚔️ Chess Eternal: Four Kings &amp; Golden Dawn — PLAY HERE ⚡</a></h1>
 
 <a href="https://khrollo963.github.io/Chess-Eternal-Blitz-/"><img src="readme-hero-v2.png" alt="Wide Chess Eternal arcade scene with Chaturaji and Enochian Chess side by side, including a green stag banner" width="920" /></a>
 
