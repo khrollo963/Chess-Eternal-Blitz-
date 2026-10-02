@@ -722,25 +722,24 @@
 <script>
 'use strict';
 
-const SIZE = 8;
+// Source map: the original CSS and markup above are preserved unchanged.
+// JavaScript sections: 1 rules, 2 AI, 3 local adapters, 4 rendering/audio,
+// 5 CPU scheduling, 6 session results, 7 move narration/input, 8 bootstrap.
 
-const COLOR_MAP = {
-  'Y': { emoji: '🟡', css: '#ffe600', label: 'Yellow' },
-  'B': { emoji: '🔵', css: '#00e5ff', label: 'Blue' },
-  'R': { emoji: '🔴', css: '#e04040', label: 'Red' },
-  'K': { emoji: '⬛', css: '#8a8a8a', label: 'Black' }
-};
+// ENOCHIAN_ENGINE_START
+// 1. Canonical rules. This closure uses only explicit domain state and RNG.
+// Geometry and historical gaps deliberately match the original executable game.
+const EnochianEngine = (() => {
+const TURN_ORDER = Object.freeze(['R', 'B', 'Y', 'K']);
 
-const TURN_ORDER = ['R', 'B', 'Y', 'K'];
+const FORWARD = Object.freeze({
+  Y: Object.freeze([1, 0]),   // top-left army advances downward
+  B: Object.freeze([0, -1]),  // top-right army advances leftward
+  R: Object.freeze([-1, 0]),  // bottom-right army advances upward
+  K: Object.freeze([0, 1])    // bottom-left army advances rightward
+});
 
-const FORWARD = {
-  Y: [1, 0],   // top-left army advances downward
-  B: [0, -1],  // top-right army advances leftward
-  R: [-1, 0],  // bottom-right army advances upward
-  K: [0, 1]    // bottom-left army advances rightward
-};
-
-const TEAM = { Y: 1, R: 1, B: 2, K: 2 };
+const TEAM = Object.freeze({ Y: 1, R: 1, B: 2, K: 2 });
 
 function isOnBoard(r, c){
   if(r >= 0 && r <= 7 && c >= 0 && c <= 7) return true;
@@ -750,49 +749,14 @@ function isOnBoard(r, c){
   if(r === 8 && c === 0) return true;
   return false;
 }
-
 const PIECE_VALUE = { KING: 0, QUEEN: 9, ROOK: 5, BISHOP: 3, KNIGHT: 3, PAWN: 1 };
-
-// Team-aware helper: true if colorB is on an opposing team to colorA (never friendly fire)
 function isEnemyColor(colorA, colorB){
   return TEAM[colorA] !== TEAM[colorB];
 }
-
-// Frozen armies (king already captured) sit on the board as static obstacles:
-// they block movement like any occupied square but can never themselves be
-// captured or removed.
-function canCapture(moverColor, occupant){
-  return isEnemyColor(moverColor, occupant.color) && game.alive[occupant.color];
+function canCapture(state, moverColor, occupant){
+  return isEnemyColor(moverColor, occupant.color) && state.alive[occupant.color];
 }
-
-const game = {
-  board: {},
-  turnIndex: 0,
-  alive: { Y: true, B: true, R: true, K: true },
-  selected: null,
-  legalMoves: [],
-  over: false,
-  playerColor: null,
-  difficulty: 'easy',
-  moveCount: 0,
-  moveLog: []
-};
-
 function key(r,c){ return r + ',' + c; }
-
-function squareLabel(r,c){
-  if(r >= 0 && r <= 7 && c >= 0 && c <= 7){
-    return String.fromCharCode(97 + c) + (8 - r);
-  }
-  if(r === 0 && c === -1) return 'Y-throne';
-  if(r === -1 && c === 7) return 'B-throne';
-  if(r === 7 && c === 8) return 'R-throne';
-  if(r === 8 && c === 0) return 'K-throne';
-  return r + ',' + c;
-}
-
-function currentColor(){ return TURN_ORDER[game.turnIndex]; }
-
 function setupBoard(){
   const board = {};
   const put = (r,c,color,type) => { board[r+','+c] = { color, type }; };
@@ -816,7 +780,276 @@ function setupBoard(){
 
   return board;
 }
+const ORTHO = [[1,0],[-1,0],[0,1],[0,-1]];
+const DIAG = [[1,1],[1,-1],[-1,1],[-1,-1]];
+const ALL8 = ORTHO.concat(DIAG);
+const KNIGHT_OFFSETS = [[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]];
 
+function slideMoves(state, r, c, color, dirs, board){
+  board = board || state.board;
+  const moves = [];
+  for(const [dr,dc] of dirs){
+    let nr = r + dr, nc = c + dc;
+    while(isOnBoard(nr,nc)){
+      const occupant = board[key(nr,nc)];
+      if(!occupant){
+        moves.push({ r: nr, c: nc, capture: false });
+      } else {
+        if(canCapture(state, color, occupant)) moves.push({ r: nr, c: nc, capture: true });
+        break;
+      }
+      nr += dr; nc += dc;
+    }
+  }
+  return moves;
+}
+
+function stepMoves(state, r, c, color, offsets, board){
+  board = board || state.board;
+  const moves = [];
+  for(const [dr,dc] of offsets){
+    const nr = r + dr, nc = c + dc;
+    if(!isOnBoard(nr,nc)) continue;
+    const occupant = board[key(nr,nc)];
+    if(!occupant) moves.push({ r: nr, c: nc, capture: false });
+    else if(canCapture(state, color, occupant)) moves.push({ r: nr, c: nc, capture: true });
+  }
+  return moves;
+}
+
+function pawnMoves(state, r, c, color, board){
+  board = board || state.board;
+  const moves = [];
+  const [fr, fc] = FORWARD[color];
+  const fwdR = r + fr, fwdC = c + fc;
+  if(isOnBoard(fwdR, fwdC) && !board[key(fwdR, fwdC)]){
+    moves.push({ r: fwdR, c: fwdC, capture: false });
+  }
+  // Diag captures
+  const diag1 = [r + fr + fc, c + fc - fr];
+  const diag2 = [r + fr - fc, c + fc + fr];
+  for(const [dr,dc] of [diag1, diag2]){
+    if(!isOnBoard(dr,dc)) continue;
+    const occupant = board[key(dr,dc)];
+    if(occupant && canCapture(state, color, occupant)) moves.push({ r: dr, c: dc, capture: true });
+  }
+  return moves;
+}
+
+function getLegalMoves(state, r, c, board){
+  board = board || state.board;
+  const piece = board[key(r,c)];
+  if(!piece) return [];
+  if(!state.alive[piece.color]) return []; // frozen army cannot move or attack
+
+  const pieceType = piece.type.startsWith('PAWN_') ? 'PAWN' : piece.type;
+
+  switch(pieceType){
+    case 'KING':   return stepMoves(state, r, c, piece.color, ALL8, board);
+    case 'QUEEN':
+      const queenLeaps = [[2,0],[0,2],[-2,0],[0,-2], [2,2],[2,-2],[-2,2],[-2,-2]];
+      return stepMoves(state, r, c, piece.color, queenLeaps, board);
+    case 'ROOK':   return slideMoves(state, r, c, piece.color, ORTHO, board);
+    case 'BISHOP': return slideMoves(state, r, c, piece.color, DIAG, board);
+    case 'KNIGHT': return stepMoves(state, r, c, piece.color, KNIGHT_OFFSETS, board);
+    case 'PAWN':   return pawnMoves(state, r, c, piece.color, board);
+    default: return [];
+  }
+}
+
+function armyHasAnyMove(state, color){
+  for(const k in state.board){
+    const piece = state.board[k];
+    if(piece.color !== color) continue;
+    const [r,c] = k.split(',').map(Number);
+    if(getLegalMoves(state, r,c).length > 0) return true;
+  }
+  return false;
+}
+
+function cloneBoard(board){
+  const nb = {};
+  for(const k in board) nb[k] = { color: board[k].color, type: board[k].type };
+  return nb;
+}
+
+function isSquareAttacked(state, board, r, c, byColors){
+  for(const k in board){
+    const p = board[k];
+    if(!byColors.has(p.color)) continue;
+    const [pr,pc] = k.split(',').map(Number);
+    const moves = getLegalMoves(state, pr, pc, board);
+    if(moves.some(m => m.r === r && m.c === c)) return true;
+  }
+  return false;
+}
+
+function advanceTurn(state){
+  let turnIndex = state.turnIndex;
+  for(let i = 0; i < TURN_ORDER.length; i++){
+    turnIndex = (turnIndex + 1) % TURN_ORDER.length;
+    const color = TURN_ORDER[turnIndex];
+    if(state.alive[color] && armyHasAnyMove(state, color)) return turnIndex;
+    if(state.alive[color] && !armyHasAnyMove(state, color)) continue;
+  }
+  return turnIndex;
+}
+
+function colorHasPieceType(state, color, type){
+  for(const k in state.board){
+    const p = state.board[k];
+    if(p.color === color && p.type === type) return true;
+  }
+  return false;
+}
+
+function teamAlive(state, team){
+  return Object.keys(TEAM).some(c => TEAM[c] === team && state.alive[c]);
+}
+
+// 2. AI policy. The original scoring and board-only simulation defects are
+// intentionally retained here until the separately tested AI repair task.
+function chooseAiMove(state, color, difficulty, random = Math.random){
+  const board = state.board;
+  const allMoves = [];
+  for(const k in board){
+    const p = board[k];
+    if(p.color !== color) continue;
+    const [r,c] = k.split(',').map(Number);
+    for(const m of getLegalMoves(state, r,c,board)){
+      allMoves.push({ fr: r, fc: c, tr: m.r, tc: m.c });
+    }
+  }
+  if(allMoves.length === 0) return null;
+
+  const nonTeam = new Set(Object.keys(TEAM).filter(c => c !== color && TEAM[c] !== TEAM[color] && state.alive[c]));
+  const riskMultiplier = difficulty === 'medium' ? 6 : 10;
+
+  let best = null, bestScore = -Infinity;
+  for(const m of allMoves){
+    const target = board[key(m.tr, m.tc)];
+    let score = target ? PIECE_VALUE[target.type] * 10 : 0;
+
+    const nb = cloneBoard(board);
+    const mover = nb[key(m.fr, m.fc)];
+    delete nb[key(m.fr, m.fc)];
+    nb[key(m.tr, m.tc)] = mover;
+
+    if(isSquareAttacked(state, nb, m.tr, m.tc, nonTeam)){
+      score -= PIECE_VALUE[mover.type] * riskMultiplier;
+    }
+
+    if(difficulty === 'hard' || difficulty === 'grandmaster'){
+      score += (4 - (Math.abs(m.tr - 3.5) + Math.abs(m.tc - 3.5)) / 2) * 0.3;
+    }
+
+    score += random() * (difficulty === 'grandmaster' ? 0.4 : (difficulty === 'hard' ? 1 : 3));
+
+    if(score > bestScore){ bestScore = score; best = m; }
+  }
+  return best;
+}
+
+function initialState(){
+  return { board: setupBoard(), turnIndex: 0, alive: { Y: true, B: true, R: true, K: true }, over: false, moveCount: 0 };
+}
+
+function legalMoves(state, from){
+  const [r,c] = typeof from === 'string' ? from.split(',').map(Number) : Array.isArray(from) ? from : [from.r, from.c];
+  return getLegalMoves(state, r, c);
+}
+
+function outcome(state){
+  const team1 = teamAlive(state, 1), team2 = teamAlive(state, 2);
+  return !team1 || !team2 ? { winningTeam: team1 ? 1 : 2 } : null;
+}
+
+function applyMove(state, move){
+  const { fr, fc, tr, tc } = move;
+  const original = state.board[key(fr,fc)];
+  if(state.over || !original || original.color !== TURN_ORDER[state.turnIndex] || !legalMoves(state, {r:fr,c:fc}).some(m => m.r === tr && m.c === tc)){
+    throw new Error('Illegal Enochian move');
+  }
+  const next = { board: cloneBoard(state.board), alive: { ...state.alive }, turnIndex: state.turnIndex, over: state.over, moveCount: state.moveCount + 1 };
+  const piece = next.board[key(fr,fc)], target = next.board[key(tr,tc)];
+  const events = [{ type: 'move', move: {fr,fc,tr,tc}, piece: {...piece} }];
+  delete next.board[key(fr,fc)];
+  next.board[key(tr,tc)] = piece;
+  if(target){
+    events.push({ type: 'capture', piece: {...target}, byColor: piece.color });
+    if(target.type === 'KING'){
+      next.alive[target.color] = false;
+      events.push({ type: 'freeze', color: target.color });
+    }
+  }
+  if(piece.type.startsWith('PAWN_')){
+    const [fwr,fwc] = FORWARD[piece.color];
+    if(!isOnBoard(tr+fwr,tc+fwc)){
+      const type = piece.type.substring(5);
+      if(!colorHasPieceType(next,piece.color,type)){
+        piece.type = type;
+        events.push({ type: 'promotion', color: piece.color, toType: type });
+      }
+    }
+  }
+  const result = outcome(next);
+  if(result){ next.over = true; events.push({ type: 'outcome', ...result }); }
+  else { next.turnIndex = advanceTurn(next); events.push({ type: 'turn', color: TURN_ORDER[next.turnIndex], turnIndex: next.turnIndex }); }
+  return { state: next, events };
+}
+
+return Object.freeze({ initialState, legalMoves, applyMove, chooseAiMove, outcome,
+  isOnBoard, isEnemyColor, key, advanceTurn, colorHasPieceType, teamAlive,
+  getLegalMoves, isSquareAttacked, cloneBoard, TURN_ORDER, FORWARD, TEAM });
+})();
+// ENOCHIAN_ENGINE_END
+
+// 3. Local session adapters. Selection, narration, rendering and audio remain
+// outside the canonical rules and are never part of a server transition.
+const { TURN_ORDER, FORWARD, TEAM, isOnBoard, isEnemyColor, key } = EnochianEngine;
+function setupBoard(){ return EnochianEngine.initialState().board; }
+function getLegalMoves(r,c,board){ return EnochianEngine.getLegalMoves(game,r,c,board); }
+function armyHasAnyMove(color){ return Object.entries(game.board).some(([k,p]) => p.color === color && EnochianEngine.legalMoves(game,k).length); }
+function cloneBoard(board){ return EnochianEngine.cloneBoard(board); }
+function isSquareAttacked(board,r,c,colors){ return EnochianEngine.isSquareAttacked(game,board,r,c,colors); }
+function aiSelectMove(color,difficulty){ return EnochianEngine.chooseAiMove(game,color,difficulty); }
+function advanceTurn(){ game.turnIndex = EnochianEngine.advanceTurn(game); }
+function colorHasPieceType(color,type){ return EnochianEngine.colorHasPieceType(game,color,type); }
+function teamAlive(team){ return EnochianEngine.teamAlive(game,team); }
+
+const SIZE = 8;
+
+const COLOR_MAP = {
+  'Y': { emoji: '🟡', css: '#ffe600', label: 'Yellow' },
+  'B': { emoji: '🔵', css: '#00e5ff', label: 'Blue' },
+  'R': { emoji: '🔴', css: '#e04040', label: 'Red' },
+  'K': { emoji: '⬛', css: '#8a8a8a', label: 'Black' }
+};
+
+const game = {
+  ...EnochianEngine.initialState(),
+  board: {}, // No active local board until the existing Start action.
+  selected: null,
+  legalMoves: [],
+  playerColor: null,
+  difficulty: 'easy',
+  moveLog: []
+};
+
+function squareLabel(r,c){
+  if(r >= 0 && r <= 7 && c >= 0 && c <= 7){
+    return String.fromCharCode(97 + c) + (8 - r);
+  }
+  if(r === 0 && c === -1) return 'Y-throne';
+  if(r === -1 && c === 7) return 'B-throne';
+  if(r === 7 && c === 8) return 'R-throne';
+  if(r === 8 && c === 0) return 'K-throne';
+  return r + ',' + c;
+}
+
+function currentColor(){ return TURN_ORDER[game.turnIndex]; }
+
+// 4. Board rendering, tooltip and audio effects.
 function renderBoard(){
   const board = game.board;
   const el = document.getElementById('board');
@@ -969,155 +1202,10 @@ function sndWin(){ [523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,0.18,
 function sndPromote(){ [392,523,659,880].forEach((f,i)=>setTimeout(()=>beep(f,0.11,'triangle',0.07), i*80)); }
 function sndDraw(){ [440,440].forEach((f,i)=>setTimeout(()=>beep(f,0.2,'triangle',0.05), i*220)); }
 
-// MOVE GENERATION
-function slideMoves(r, c, color, dirs, board){
-  board = board || game.board;
-  const moves = [];
-  for(const [dr,dc] of dirs){
-    let nr = r + dr, nc = c + dc;
-    while(isOnBoard(nr,nc)){
-      const occupant = board[key(nr,nc)];
-      if(!occupant){
-        moves.push({ r: nr, c: nc, capture: false });
-      } else {
-        if(canCapture(color, occupant)) moves.push({ r: nr, c: nc, capture: true });
-        break;
-      }
-      nr += dr; nc += dc;
-    }
-  }
-  return moves;
-}
-
-function stepMoves(r, c, color, offsets, board){
-  board = board || game.board;
-  const moves = [];
-  for(const [dr,dc] of offsets){
-    const nr = r + dr, nc = c + dc;
-    if(!isOnBoard(nr,nc)) continue;
-    const occupant = board[key(nr,nc)];
-    if(!occupant) moves.push({ r: nr, c: nc, capture: false });
-    else if(canCapture(color, occupant)) moves.push({ r: nr, c: nc, capture: true });
-  }
-  return moves;
-}
-
-const ORTHO = [[1,0],[-1,0],[0,1],[0,-1]];
-const DIAG = [[1,1],[1,-1],[-1,1],[-1,-1]];
-const ALL8 = ORTHO.concat(DIAG);
-const KNIGHT_OFFSETS = [[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]];
-
-function pawnMoves(r, c, color, board){
-  board = board || game.board;
-  const moves = [];
-  const [fr, fc] = FORWARD[color];
-  const fwdR = r + fr, fwdC = c + fc;
-  if(isOnBoard(fwdR, fwdC) && !board[key(fwdR, fwdC)]){
-    moves.push({ r: fwdR, c: fwdC, capture: false });
-  }
-  // Diag captures
-  const diag1 = [r + fr + fc, c + fc - fr];
-  const diag2 = [r + fr - fc, c + fc + fr];
-  for(const [dr,dc] of [diag1, diag2]){
-    if(!isOnBoard(dr,dc)) continue;
-    const occupant = board[key(dr,dc)];
-    if(occupant && canCapture(color, occupant)) moves.push({ r: dr, c: dc, capture: true });
-  }
-  return moves;
-}
-
-function getLegalMoves(r, c, board){
-  board = board || game.board;
-  const piece = board[key(r,c)];
-  if(!piece) return [];
-  if(!game.alive[piece.color]) return []; // frozen army cannot move or attack
-
-  const pieceType = piece.type.startsWith('PAWN_') ? 'PAWN' : piece.type;
-  
-  switch(pieceType){
-    case 'KING':   return stepMoves(r, c, piece.color, ALL8, board);
-    case 'QUEEN':  
-      const queenLeaps = [[2,0],[0,2],[-2,0],[0,-2], [2,2],[2,-2],[-2,2],[-2,-2]];
-      return stepMoves(r, c, piece.color, queenLeaps, board);
-    case 'ROOK':   return slideMoves(r, c, piece.color, ORTHO, board);
-    case 'BISHOP': return slideMoves(r, c, piece.color, DIAG, board);
-    case 'KNIGHT': return stepMoves(r, c, piece.color, KNIGHT_OFFSETS, board);
-    case 'PAWN':   return pawnMoves(r, c, piece.color, board);
-    default: return [];
-  }
-}
-
-function armyHasAnyMove(color){
-  for(const k in game.board){
-    const piece = game.board[k];
-    if(piece.color !== color) continue;
-    const [r,c] = k.split(',').map(Number);
-    if(getLegalMoves(r,c).length > 0) return true;
-  }
-  return false;
-}
-
-// AI
-function cloneBoard(board){
-  const nb = {};
-  for(const k in board) nb[k] = { color: board[k].color, type: board[k].type };
-  return nb;
-}
-
-function isSquareAttacked(board, r, c, byColors){
-  for(const k in board){
-    const p = board[k];
-    if(!byColors.has(p.color)) continue;
-    const [pr,pc] = k.split(',').map(Number);
-    const moves = getLegalMoves(pr, pc, board);
-    if(moves.some(m => m.r === r && m.c === c)) return true;
-  }
-  return false;
-}
+// 5. Local CPU scheduling (lifecycle repair follows in Task 3).
 
 function isColorCpu(color){
   return game.playerColor !== null && color !== game.playerColor;
-}
-
-function aiSelectMove(color, difficulty){
-  const board = game.board;
-  const allMoves = [];
-  for(const k in board){
-    const p = board[k];
-    if(p.color !== color) continue;
-    const [r,c] = k.split(',').map(Number);
-    for(const m of getLegalMoves(r,c,board)){
-      allMoves.push({ fr: r, fc: c, tr: m.r, tc: m.c });
-    }
-  }
-  if(allMoves.length === 0) return null;
-
-  const nonTeam = new Set(Object.keys(TEAM).filter(c => c !== color && TEAM[c] !== TEAM[color] && game.alive[c]));
-  const riskMultiplier = difficulty === 'medium' ? 6 : 10;
-
-  let best = null, bestScore = -Infinity;
-  for(const m of allMoves){
-    const target = board[key(m.tr, m.tc)];
-    let score = target ? PIECE_VALUE[target.type] * 10 : 0;
-
-    const nb = cloneBoard(board);
-    const mover = nb[key(m.fr, m.fc)];
-    delete nb[key(m.fr, m.fc)];
-    nb[key(m.tr, m.tc)] = mover;
-
-    if(isSquareAttacked(nb, m.tr, m.tc, nonTeam)){
-      score -= PIECE_VALUE[mover.type] * riskMultiplier;
-    }
-
-    if(difficulty === 'hard' || difficulty === 'grandmaster'){
-      score += (4 - (Math.abs(m.tr - 3.5) + Math.abs(m.tc - 3.5)) / 2) * 0.3;
-    }
-
-    score += Math.random() * (difficulty === 'grandmaster' ? 0.4 : (difficulty === 'hard' ? 1 : 3));
-
-    if(score > bestScore){ bestScore = score; best = m; }
-  }
-  return best;
 }
 
 let speedMode = false;
@@ -1141,34 +1229,7 @@ function advanceAndContinue(){
   maybeRunCpuTurn();
 }
 
-// TURN FLOW
-function advanceTurn(){
-  for(let i = 0; i < TURN_ORDER.length; i++){
-    game.turnIndex = (game.turnIndex + 1) % TURN_ORDER.length;
-    const color = TURN_ORDER[game.turnIndex];
-    if(game.alive[color] && armyHasAnyMove(color)) return;
-    if(game.alive[color] && !armyHasAnyMove(color)) continue;
-  }
-}
-
-function colorHasPieceType(color, type){
-  for(const k in game.board){
-    const p = game.board[k];
-    if(p.color === color && p.type === type) return true;
-  }
-  return false;
-}
-
-function eliminate(color){
-  // A captured king's army FREEZES rather than vanishing: its pieces remain
-  // on the board (still capturable by anyone) but can no longer move.
-  game.alive[color] = false;
-}
-
-function teamAlive(team){
-  return Object.keys(TEAM).some(c => TEAM[c] === team && game.alive[c]);
-}
-
+// 6. Local session results and the existing launcher statistics bridge.
 const MAX_SESSION_LOG_ENTRIES = 30;
 let sessionLog = [];
 function saveSessionLog(){ try{ localStorage.setItem('enochian_sessionlog_v1', JSON.stringify(sessionLog)); }catch(e){} }
@@ -1234,10 +1295,10 @@ function renderSessionLog(){
 }
 
 function checkWin(){
-  const team1 = teamAlive(1), team2 = teamAlive(2);
-  if(!team1 || !team2){
+  const result = EnochianEngine.outcome(game);
+  if(result){
     game.over = true;
-    const winningTeam = team1 ? 1 : 2;
+    const winningTeam = result.winningTeam;
     const winnerLabel = winningTeam === 1 ? '🌍 Team Sulphur' : '🧂 Team Salt';
     setStatus('🏆 ' + winnerLabel + ' win! Both enemy kings have fallen.', true);
     sndWin();
@@ -1321,6 +1382,7 @@ function clearSelection(){
   game.legalMoves = [];
 }
 
+// 7. Apply one domain transition, then narrate and render its effects.
 function makeMove(fr, fc, tr, tc){
   const piece = game.board[key(fr,fc)];
   const target = game.board[key(tr,tc)];
@@ -1331,15 +1393,15 @@ function makeMove(fr, fc, tr, tc){
   let captureNote = '';
   let kingCaptured = false;
 
-  delete game.board[key(fr,fc)];
-  game.board[key(tr,tc)] = piece;
-  game.moveCount++;
+  const transition = EnochianEngine.applyMove(game, {fr,fc,tr,tc});
+  const {board,alive,turnIndex,over,moveCount} = transition.state;
+  Object.assign(game, {board,alive,turnIndex,over,moveCount});
 
   if(target && target.type === 'KING'){
     sndKingCapture();
     kingCaptured = true;
     captureNote = 'captures the ' + COLOR_MAP[target.color].label + ' King! ' + COLOR_MAP[target.color].label + "'s army freezes";
-    eliminate(target.color);
+
   } else if(target){
     sndCapture();
     const targetLabel = target.type.startsWith('PAWN_') ? pawnTypeLabel(target.type) : cap(target.type.toLowerCase());
@@ -1348,22 +1410,9 @@ function makeMove(fr, fc, tr, tc){
     sndMove();
   }
 
-  // Promotion - each pawn is bound to the major/minor piece it started behind
-  // (see setupBoard: PAWN_QUEEN, PAWN_BISHOP, PAWN_KNIGHT, PAWN_ROOK).
-  // It may only become that piece, and only once its side has actually lost
-  // the original of that type. Otherwise it simply stops at the edge.
-  let promotionNote = '';
-  if(piece.type.startsWith('PAWN_')){
-    const [fwr, fwc] = FORWARD[piece.color];
-    if(!isOnBoard(tr + fwr, tc + fwc)){
-      const promoteToType = piece.type.substring(5);
-      if(!colorHasPieceType(piece.color, promoteToType)){
-        piece.type = promoteToType;
-        promotionNote = 'promotes to ' + cap(promoteToType.toLowerCase());
-        sndPromote();
-      }
-    }
-  }
+  const promotion = transition.events.find(event => event.type === 'promotion');
+  const promotionNote = promotion ? 'promotes to ' + cap(promotion.toType.toLowerCase()) : '';
+  if(promotion) sndPromote();
 
   logMove(moverColor, moverLabel, fromLabel, toLabel, captureNote, promotionNote, !!target);
 
@@ -1375,7 +1424,6 @@ function makeMove(fr, fc, tr, tc){
     return;
   }
 
-  advanceTurn();
   renderBoard();
   updateTurnIndicator();
   maybeRunCpuTurn();
@@ -1451,11 +1499,7 @@ function onBoardClick(e){
 }
 
 function resetGame(){
-  game.board = setupBoard();
-  game.turnIndex = 0;
-  game.alive = { Y: true, B: true, R: true, K: true };
-  game.over = false;
-  game.moveCount = 0;
+  Object.assign(game, EnochianEngine.initialState());
   game.moveLog = [];
   speedMode = false;
   clearSelection();
@@ -1485,10 +1529,10 @@ function wireTabs(){
   document.getElementById('tabNav').addEventListener('click', e => {
     const btn = e.target.closest('.tab-btn');
     if(!btn) return;
-    
+
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    
+
     btn.classList.add('active');
     document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
 
@@ -1515,6 +1559,7 @@ function wireDifficultyPicker(){
   });
 }
 
+// 8. Bootstrap and UI event wiring.
 function init(){
   loadSessionLog();
   wireTabs();
@@ -1523,7 +1568,7 @@ function init(){
 
   document.getElementById('board').addEventListener('click', onBoardClick);
   wirePieceTooltip();
-  
+
   // Wire up start buttons
   document.querySelectorAll('.color-pick-btn, .choice-btn, .tab-btn, .link-btn').forEach(btn => {
     btn.addEventListener('click', () => { initAudio(); sndClick(); });

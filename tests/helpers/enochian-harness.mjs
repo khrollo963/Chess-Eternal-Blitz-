@@ -104,6 +104,13 @@ export function createHarness({ version = 'current', observeAI = false, launched
     const anchor = 'if(score > bestScore){ bestScore = score; best = m; }';
     assert.equal(script.split(anchor).length, 2, 'Harness: scoring observation anchor changed; adapt to the real engine API');
     script = script.replace(anchor, `__observeScore(m, score);\n    ${anchor}`);
+    if (version === 'current' && script.includes('// ENOCHIAN_ENGINE_START')) {
+      // The canonical attack probe has explicit state. Observe that actual
+      // candidate state at its call site, preserving every arithmetic operation.
+      const attack = 'if(isSquareAttacked(state, nb, m.tr, m.tc, nonTeam)){';
+      assert.equal(script.split(attack).length, 2, 'Harness: canonical AI candidate observation anchor');
+      script = script.replace(attack, `const attacked = isSquareAttacked(state, nb, m.tr, m.tc, nonTeam);\n    __observeSuccessor(nb, state.alive, attacked);\n    if(attacked){`);
+    }
   }
   run(script);
   run(`Math.random = () => 0;
@@ -111,7 +118,7 @@ export function createHarness({ version = 'current', observeAI = false, launched
     sndClick = sndMove = sndCapture = sndKingCapture = sndPromote = sndWin = sndDraw = () => {};`);
   if (observeAI) {
     sandbox.__observeSuccessor = (board, alive, attacked) => successors.push({ board: JSON.parse(JSON.stringify(board)), alive: { ...alive }, attacked });
-    run(`const originalAttackProbe = isSquareAttacked;
+    if (version === 'original' || !script.includes('// ENOCHIAN_ENGINE_START')) run(`const originalAttackProbe = isSquareAttacked;
       isSquareAttacked = function(board, r, c, colors) {
         const attacked = originalAttackProbe(board, r, c, colors);
         __observeSuccessor(board, game.alive, attacked);
@@ -139,7 +146,7 @@ export function createHarness({ version = 'current', observeAI = false, launched
     run, clock, ui, launcher, scores, successors,
     snapshot: () => JSON.parse(run('JSON.stringify(game)')),
     setState(board, overrides = {}) {
-      sandbox.__fixture = { board: structuredClone(board), turnIndex: 0, alive: { R: true, B: true, Y: true, K: true }, selected: null, legalMoves: [], over: false, playerColor: null, difficulty: 'hard', moveCount: 0, moveLog: [], ...overrides };
+      sandbox.__fixture = structuredClone({ turnIndex: 0, alive: { R: true, B: true, Y: true, K: true }, selected: null, legalMoves: [], over: false, playerColor: null, difficulty: 'hard', moveCount: 0, moveLog: [], ...overrides, board });
       run('Object.assign(game, __fixture)');
     },
     legalMoves(color) {
