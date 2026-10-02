@@ -10,6 +10,7 @@ import { BotScheduler, type BotTimer } from '../domain/bots.js';
 import type { CasualService } from '../domain/CasualService.js';
 import type { RankedService } from '../domain/RankedService.js';
 import { ExchangeService, parseExchangeCommand } from '../domain/ExchangeService.js';
+import type { TransportSecurity } from '../http/transport-security.js';
 
 function safeDomainError(error: unknown): Error {
   const message = error instanceof Error ? error.message : '';
@@ -37,6 +38,7 @@ export interface RoomScaffoldOptions {
   casual?: CasualService;
   ranked?: RankedService;
   clock?: () => number;
+  transportSecurity?: TransportSecurity;
   botOptions?: { scheduler?: BotTimer; random?: () => number; maxNodes?: number; delayMs?: number };
 }
 export interface ConnectionHooks {
@@ -65,12 +67,15 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
   private maintenance?: ReturnType<typeof setInterval>;
   private disposed = false;
   private draining = false;
+  private transportSecurity?: TransportSecurity;
+  private actionClock: () => number = Date.now;
 
   async onCreate(options: RoomScaffoldOptions) {
     try { await this.createRoom(options); } catch (error) { throw safeDomainError(error); }
   }
   private async createRoom(options: RoomScaffoldOptions) {
     this.delegates = options.delegates;
+    this.transportSecurity = options.transportSecurity; this.actionClock = options.clock ?? Date.now;
     this.isReady = options.isReady; this.connections = options.connections; this.verifyAuth = options.verifyAuth;
     this.casual = options.casual;
     this.ranked = options.ranked;
@@ -96,6 +101,7 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
       this.maintenance.unref();
       await this.maintain();
       this.onMessage('command', async (client, payload: unknown) => {
+        if (!await this.allowAction(client, payload)) return;
         if (this.isReady && !this.isReady()) { client.send('ack', { ok: false, code: 'storage_unavailable', retryable: true }); return; }
         try {
           await this.preflight();
@@ -104,6 +110,7 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
         } catch (error) { const code = safeDomainError(error).message; client.send('ack', { ok: false, code, retryable: code === 'storage_unavailable' }); }
       });
       this.onMessage('lobby_command', async (client, payload: unknown) => {
+        if (!await this.allowAction(client, payload)) return;
         if (this.isReady && !this.isReady()) { client.send('ack', { ok: false, code: 'storage_unavailable', retryable: true }); return; }
         const input = payload as { matchId?: string; requestId?: string; expectedRevision?: number; action?: LobbyAction; protocolVersion?: number; rulesVersion?: string };
         if (!input || typeof input !== 'object' || Array.isArray(input) || Object.getPrototypeOf(input) !== Object.prototype || Object.keys(input).length !== 6 || Object.keys(input).some(key => !['matchId','requestId','expectedRevision','action','protocolVersion','rulesVersion'].includes(key))) { client.send('ack', { ok: false, code: 'invalid_command', retryable: false }); return; }
@@ -116,6 +123,7 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
         } catch (error) { const code = safeDomainError(error).message; client.send('ack', { ok: false, code, retryable: code === 'storage_unavailable' }); }
       });
       this.onMessage('exchange_command', async (client, payload: unknown) => {
+        if (!await this.allowAction(client, payload)) return;
         if (this.isReady && !this.isReady()) { client.send('ack', { ok: false, code: 'storage_unavailable', retryable: true }); return; }
         const parsed = parseExchangeCommand(payload);
         if (!parsed.ok) { client.send('ack', parsed.result); return; }
@@ -224,6 +232,15 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
     await this.casual?.expire(this.matchId!);
     await this.ranked?.expire(this.matchId!);
     await this.exchange?.expire(this.matchId!);
+  }
+  private async allowAction(client: Client, payload: unknown): Promise<boolean> {
+    const rejection = this.transportSecurity?.allowAction({ connectionId: client.sessionId,
+      // Auth context is populated by the server and never taken from the action payload.
+      actorId: typeof client.auth?.actorId === 'string' ? client.auth.actorId : undefined, payload }, this.actionClock());
+    if (!rejection) return true;
+    const code = rejection.status === 429 ? 'rate_limited' : 'payload_too_large';
+    client.send('ack', { ok: false, code, retryable: code === 'rate_limited' });
+    return false;
   }
   private async maintain() {
     if (this.disposed || this.draining || !this.store || !this.matchId || (this.isReady && !this.isReady())) { this.bots?.cancel(); return; }

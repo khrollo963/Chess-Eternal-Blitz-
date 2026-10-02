@@ -12,6 +12,8 @@ import type { SupabaseIdentityConfig } from './identity/supabase.js';
 import { registerIdentityConfiguration } from './http/identity.js';
 import { RankedService } from './domain/RankedService.js';
 import { registerSignIn } from './http/signin.js';
+import { SecureBunWebSockets } from './http/SecureBunWebSockets.js';
+import type { TransportSecurity } from './http/transport-security.js';
 
 export function createGameServer(options: {
   delegates?: RoomDelegates;
@@ -25,13 +27,18 @@ export function createGameServer(options: {
   connections?: ConnectionHooks;
   clock?: () => number;
   botOptions?: { scheduler?: BotTimer; random?: () => number; maxNodes?: number; delayMs?: number };
+  transportSecurity?: TransportSecurity;
+  ingressPolicy?: 'railway-edge-only' | 'local-fixture';
 } = {}) {
   assertRuntime();
-  const transport = new BunWebSockets({
+  const websocketOptions = {
     idleTimeout: options.idleTimeout ?? 120,
     sendPings: true,
     maxPayloadLength: 4096,
-  });
+  };
+  const transport = options.transportSecurity
+    ? new SecureBunWebSockets(websocketOptions, { security: options.transportSecurity, ingressPolicy: options.ingressPolicy ?? 'railway-edge-only', clock: options.clock })
+    : new BunWebSockets(websocketOptions);
   const server = new Server({ transport, gracefullyShutdown: false, greet: false });
   const delegates = options.delegates ?? { authenticate: () => false };
   const lobby = options.store ? new LobbyService({ store: options.store, rankedEnabled: options.rankedEnabled, clock: options.clock }) : undefined;
@@ -49,7 +56,7 @@ export function createGameServer(options: {
     },
   } : undefined);
   server.define("enochian", EnochianRoom, { delegates, reconnectionSeconds: options.reconnectionSeconds, lobby, store: options.store,
-    isReady: options.isReady, verifyAuth: options.verifyAuth, connections, casual, ranked, clock: options.clock, botOptions: options.botOptions });
+    isReady: options.isReady, verifyAuth: options.verifyAuth, connections, casual, ranked, clock: options.clock, botOptions: options.botOptions, transportSecurity: options.transportSecurity });
   const app = transport.getExpressApp();
   app.get("/health", (_req, res) => res.json({ status: "ok", ...runtimeDiagnostics() }));
   // Memory-only preflight is not production multiplayer readiness.

@@ -7,10 +7,24 @@ import type { RecoveryRecord } from './RecoveryCoordinator.js';
 import type { EnochianRoom } from '../rooms/EnochianRoom.js';
 import type { PostgresStoreOptions } from '../storage/PostgresMatchStore.js';
 import { createSupabaseIdentity, readSupabaseIdentityConfig } from '../identity/supabase.js';
+import { publicEndpoint, TransportSecurity } from '../http/transport-security.js';
+import { registerClientPages } from '../http/client-pages.js';
 
 export async function startServer(env: Record<string, string | undefined>, options: { signals?: boolean; storeHooks?: PostgresStoreOptions['hooks'] } = {}) {
   const config = readConfig(env);
   const identity = readSupabaseIdentityConfig(env);
+  let transportSecurity: TransportSecurity | undefined;
+  const needsSecurity = env.NODE_ENV === 'production' || !!env.MULTIPLAYER_PUBLIC_ENDPOINT || !!env.MULTIPLAYER_ALLOWED_ORIGINS || !!env.MULTIPLAYER_INGRESS_POLICY;
+  if (needsSecurity) {
+    // This is an explicit deployment boundary, never a forwarded-proto/header decision.
+    // The operator must expose the service only through Railway's approved HTTPS ingress.
+    if (env.MULTIPLAYER_INGRESS_POLICY !== 'railway-edge-only') throw new Error('Invalid ingress policy');
+    const endpoint = publicEndpoint(env.MULTIPLAYER_PUBLIC_ENDPOINT ?? '');
+    const origins = (env.MULTIPLAYER_ALLOWED_ORIGINS ?? '').split(',').map(value => value.trim()).filter(Boolean);
+    if (!origins.length || !origins.includes(endpoint)) throw new Error('Invalid allowed origin');
+    if (env.MULTIPLAYER_ALLOW_MISSING_ORIGIN !== undefined && !['true', 'false'].includes(env.MULTIPLAYER_ALLOW_MISSING_ORIGIN)) throw new Error('Invalid missing origin policy');
+    transportSecurity = new TransportSecurity({ allowedOrigins: origins, allowMissingOrigin: env.MULTIPLAYER_ALLOW_MISSING_ORIGIN === 'true' });
+  }
   let ready = false, closing: Promise<void> | undefined;
   let app: ReturnType<typeof createGameServer> | undefined;
   let maintenance: ReturnType<typeof setInterval> | undefined;
@@ -21,6 +35,7 @@ export async function startServer(env: Record<string, string | undefined>, optio
     room?.publishCommitted(publicSnapshot(record));
   };
   app = createGameServer({ store: durable?.store, identityConfig: identity, verifyAuth: identity ? createSupabaseIdentity(identity) : undefined,
+    transportSecurity, ingressPolicy: transportSecurity ? 'railway-edge-only' : undefined,
     isReady: () => ready && !!durable?.runtime.healthy,
     connections: durable ? {
       async connect(matchId, credential, connectionId) {
@@ -52,6 +67,7 @@ export async function startServer(env: Record<string, string | undefined>, optio
     })();
   }
   try {
+    if (transportSecurity) registerClientPages(app.app, env.MULTIPLAYER_PUBLIC_ENDPOINT!);
     await app.server.listen(config.port, config.hostname);
     if (durable) {
       await durable.rehydrate(app.lobby!, async (matchId, creationPermit) => {
