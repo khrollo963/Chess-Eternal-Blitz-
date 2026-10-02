@@ -1,0 +1,15 @@
+# Private lobby and ownership contract
+
+Invitation codes reserve a unique stable application match ID. An invitation is not a seat credential. HTTP create/join responses privately issue a random 32-byte recovery token; only its SHA-256 hash is persisted. Credentials belong in request bodies, never invite URLs, Schema, metadata, logs or public snapshots. Display names are bounded plain text. The ranked identity argument is trusted adapter output, never a client account ID; ranked remains disabled by default.
+
+Create persists the match before creating a private Colyseus room, then commits its transport mapping before responding. A one-use server-only creation permit prevents direct SDK creation of another transport for an existing match. Failed transport creation voids the pending lobby. Private visibility prevents public matchmaking; `lock()` is deliberately omitted because the installed Colyseus SDK also rejects `joinById` for locked rooms. All admissions still authenticate ownership before state synchronization.
+
+The duplicate connection policy is **reject the new connection**. It never replaces the retained connection or triggers a departure for it. On authentication and again on committed connection admission, an existing private connection ID prevents a second connection. Prestart departure revokes the departing credential, releases its color and removes readiness. An old departure callback whose connection ID is no longer present is a no-op.
+
+Every ready/color/connection/departure/mapping change uses the same snapshot, event and deduplicated acknowledgement transaction as moves, with revision compare-and-swap. A concurrent operation may return `stale_revision`; the caller reloads and retries with its current revision. Storage failure produces no accepted acknowledgement or uncommitted public state. The last ready command starts casual play only with 2–4 connected, explicitly ready humans and fills vacant armies with bots. Ranked additionally rechecks four distinct verified accounts and no bot seats at start.
+
+Server-owned departure callbacks retry revision conflicts with a bounded reload loop. Every retry rechecks the private connection ID before clearing ownership, so simultaneous departures both release their seats and an obsolete callback cannot clear a retained or replacement session.
+
+Unstarted invitations expire absolutely 30 minutes after creation; joining and readiness do not extend expiry. Lookup/join/admission enforce expiry even when no timer has run. Poststart new-human admission is rejected. Active absence, original-owner reclaim, bot scheduling and service-recovery orchestration are subsequent lifecycle tasks, and production readiness remains HTTP 503 until durable storage is configured and verified.
+
+Transport Schema contains only the explicit public projection. Null deadlines and absent terminal team use `-1`; empty terminal kind/reason mean no result. Alive flags are keyed army records with one `alive` boolean. Private HTTP recovery returns transport routing only after credential authentication, including routing for a terminal match; it does not reopen a finished match.

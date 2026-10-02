@@ -1,0 +1,8 @@
+.tooling/
+server/node_modules/
+server/dist/
+server/dist-test/
+dist/
+server/.env
+server/.env.*
+!server/.env.example

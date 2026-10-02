@@ -1,0 +1,32 @@
+{
+  "name": "enochian-server",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.4.2",
+  "engines": {
+    "bun": "1.4.2"
+  },
+  "scripts": {
+    "typecheck": "bun ../scripts/run-server.mjs typecheck",
+    "build": "bun ../scripts/run-server.mjs build",
+    "build:test": "bun ../scripts/run-server.mjs build:test",
+    "test": "bun ../scripts/run-server.mjs test",
+    "test:integration": "bun ../scripts/run-server.mjs test:integration",
+    "dev": "bun ../scripts/run-server.mjs dev",
+    "start": "bun ../scripts/run-server.mjs start"
+  },
+  "dependencies": {
+    "@colyseus/bun-websockets": "0.18.3",
+    "@colyseus/core": "0.18.18",
+    "@colyseus/schema": "5.0.35",
+    "@colyseus/sdk": "0.18.4",
+    "@supabase/supabase-js": "2.117.2",
+    "pg": "8.23.1"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.2",
+    "@types/node": "24.19.1",
+    "@types/pg": "8.23.1",
+    "typescript": "7.0.2"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "target": "ES2022", "module": "NodeNext", "moduleResolution": "NodeNext",
+    "strict": true, "skipLibCheck": true, "rootDir": "src", "outDir": "dist",
+    "types": ["bun", "node"], "allowJs": true, "checkJs": false,
+    "noUncheckedIndexedAccess": true, "sourceMap": true
+  },
+  "include": ["src/**/*"]
+}

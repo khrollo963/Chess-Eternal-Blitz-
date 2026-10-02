@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "original": {
+    "revision": "9d7a62a0407f6fcf34da3975312be1a757c020e5",
+    "path": "index.html",
+    "blob": "97db1109fc236e7b262a8d434b81933c35d08c0e",
+    "sha256": "1b431af76c110f22a979b82f2301ba9400e1c6ddea6e7f79b467c8ce56030abb",
+    "byteLength": 806033
+  },
+  "launcherOutsideLoaderSha256": "71404872ec2073a0a1f8ba33680e6477b4cb0ae66e70453816937a9ab2798ca0",
+  "launcherInventory": {
+    "storageKeys": [
+      "unified_sessionlog_v1"
+    ],
+    "inlineAssets": []
+  },
+  "games": {
+    "chaturaji": {
+      "base64Sha256": "f89cc4631d1db964b254becfdd89529abfed1b057b029e26aab184163d24fd60",
+      "base64Length": 722096,
+      "decodedSha256": "db305ecd85e7be7e611c0ee45868e2489b97368bf68ea3a98722d655a67d861c",
+      "decodedByteLength": 541570,
+      "storageKeys": [
+        "chaturaji_achievement_v1",
+        "chaturaji_achievements_v1",
+        "chaturaji_collectibles_v1",
+        "chaturaji_sessionlog_v1"
+      ],
+      "inlineAssets": [
+        "0d8fa0760362050b0e6d75ae1b8ecdaba803d58c178312a26afd90e72c872876",
+        "11184e2c63ef5f1fa8fbe7bfd9d0c82ec54c2d21dbce2fe8a92a1fd56d0bb6c6",
+        "13470c4867899c01f224d71de6eb2a46cbfcfe9ac358df45433c1917332d0ace",
+        "2999b066f44ef0a217dc06b5e0d67c75fff745f089d98cd9bea14c68416413dc",
+        "2bdeb6645bd0096f7c59e38e48eb0698cfa3f1f2ee9febc9d79814616c5075b5",
+        "421f98b2615b537cd9fa6a02686b6dd84eb3e324996113ac7625f05826f97b2d",
+        "4d9276d7d5f33a8c8d0b8302e41828d424fe201f6b25871537516d684c7a4684",
+        "545fa9210920ade794293d3e5d993fa982a6e3c313baa9f5fef510ed26f4acd5",
+        "5c532ac7f9516badebef11ebd8ba31428228c28b63d204819573209a3244e823",
+        "62d9aa51d53b1ed617a9f00a6c4dc2b4ce08c48b133624ce5218a2a47aeecff6",
+        "63e18ae8e7f0a105d0a69f09a5afa4d5fdacae52ab8f7dbdceb3a9d2ccd6d2f6",
+        "6a4d2d66399bd671fb3127be75ea1b1ae421efc5fd8d2a3797f85c8ebede7d2a",
+        "77e2b74f2793c67efd834a09c2d48f4042a8e7fa75216cd72997d9ae2f4f4ab2",
+        "78faee22ce3b1865138de39c92e446b0ee2ddb7760b4f1764023935971405f41",
+        "7d7548f1b437511550a1817b6da8c1fc0d4ddc780bd465d17755aa65e68aa764",
+        "85bbcc6de2b19050e9937cf8e286c0505a37fb199504acdd66aad583b37be023",
+        "86604c586f27e0ad7a5181d11beeaa9954d25686d0e1b3661ca3aec282a516af",
+        "964d6c68ef2d0ce95fc393fb77e66f24d52e8342a85297dafca5d0e312c1a2e9",
+        "9aab2e98a1393743bf2ce5efe6232e804179bf7e21c4cf9aa1702249096782da",
+        "9bbf9e75aba694d16774609517ebc461aff9ac9c11b17e76c493bf2ca2a518e4",
+        "9cc048abb30f9654857575dd5777efefdd467bd259b0b044740fb9b4de01e795",
+        "a8be6325adb1b2884334821f9eda76a9457b1fde0377eb1d3bd869c060c5389a",
+        "a9a44680c4d82a671b7f1aabe73222fb114ffae84f5a6a273e7e272b48492a49",
+        "aa2fd4d223831fa9956ed2fda5391a8879ff41f8f40bcb3715c3ab1bf390ec44",
+        "b24ca031fc14a2820b171e45aea859c6fc2c4450e9153b1f156ded0c48947e94",
+        "b443ebd8662e6213d0bedb27315af1ef3399a25566340984e067b36da3b0be68",
+        "b554923376a8ed9f884efd5266364e553b66a0190d62dbb2967dddbfbe26d5f8",
+        "b65dc38f78a034ece0483b30e3f5d3eebdda74ada9a3bf036e66d06c303777ee",
+        "b84966a7408eaac6b0d8b3c7eae5f2a285bba81c8cdb48937d362e217b7daca6",
+        "c15cd004154b915760301aa5fbdcbae08b9d7b08265b2b07781dfef9452a82d8",
+        "c377314c83437b04239fb8fcc4d314fb92d48db76ab1658af6cfc6d9a6c4d8c9",
+        "c5a9411d1a7ecd8ec0ca4cf0be8e4190c7e33f53dc43245b81292121183ab880",
+        "ccdcac520631e0b9bb1bacd753436b1afd31c0bff873c0c79cfef5b02585183e",
+        "d1e2ccd4b2c0ced22c125eeb93398c1af962449bfb14b9064226af1b789bfed9",
+        "df9ea019f33c48c8b59f35d089f257cfaf9a592897c45dcc340fcb21ec374288",
+        "e1eb619eb581c8a0a44e9bd71a9c00593f0f081007b5911cbafce3a3e88a878f",
+        "e786801ec41e905ee2e717554d33c0889dd696816174e60a978ef8762738a1ea",
+        "f5cd1e82fbdffeb251071760558334b8c90a6600b243d0ea017b4212cd5bc8c9",
+        "fd6d65e671312cff57de719d45cddad8398b6bf1364e22795c413e8dd2e1e04e",
+        "fda0ab9e7bce176b45b8f496d96fd11c24790dc1668012f99b48aa12734acbfc"
+      ]
+    },
+    "enochian": {
+      "base64Sha256": "e4a9dc2562d0b38b9c0336007cfaffe6214066f4391b77941348618fd78b7f6b",
+      "base64Length": 73956,
+      "decodedSha256": "5789906f2da8b8ae0d20525c60b0990ad7ffffcc43ec93ff900d1a6cb5e2efd5",
+      "decodedByteLength": 55466,
+      "storageKeys": [
+        "enochian_sessionlog_v1"
+      ],
+      "inlineAssets": []
+    }
+  },
+  "invariants": {
+    "statistics": {
+      "storageKey": "unified_sessionlog_v1",
+      "maxSessions": 200,
+      "winResult": "WIN",
+      "figuresGame": "chaturaji",
+      "bridge": "window.addGameSession",
+      "unchangedSourceSha256": "01201a91a17d1719886ae624fcfb3ca02c68cc253d6f8251156a05afcfb68eb5"
+    },
+    "navigation": {
+      "frames": [
+        "chaturaji-frame",
+        "enochian-frame"
+      ],
+      "wrappers": [
+        "chaturaji-wrapper",
+        "enochian-wrapper"
+      ],
+      "menu": "mainMenu",
+      "backButton": "backBtn",
+      "unchangedSourceSha256": "26fdaf1a4f11abe6d675682f8b2adfe818e70f92ea543c500d994c12158716c3"
+    }
+  }
+}
