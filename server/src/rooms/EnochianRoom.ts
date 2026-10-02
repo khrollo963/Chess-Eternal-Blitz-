@@ -90,7 +90,10 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
       this.lobby = options.lobby; this.store = options.store; this.matchId = options.matchId;
       this.autoDispose = false;
       await this.setPrivate(true);
-      const publish = (snapshot: PublicSnapshot) => { if (snapshot.revision >= this.state.revision) applySnapshot(this.state, snapshot); };
+      const publish = (snapshot: PublicSnapshot) => {
+        if (snapshot.revision >= this.state.revision) applySnapshot(this.state, snapshot);
+        this.stopTerminalMaintenance();
+      };
       publish(publicSnapshot((await this.store.load(this.matchId))!));
       const committed = (snapshot: PublicSnapshot) => { publish(snapshot); void this.maintain().catch(() => this.bots?.cancel()); };
       const moves = new CommandProcessor({ store: this.store, publish: committed, clock: options.clock });
@@ -225,7 +228,7 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
   }
   publishCommitted(snapshot: PublicSnapshot) {
     if (snapshot.matchId === this.matchId && snapshot.revision >= this.state.revision) applySnapshot(this.state, snapshot);
-    void this.maintain().catch(() => this.bots?.cancel());
+    if (!this.stopTerminalMaintenance()) void this.maintain().catch(() => this.bots?.cancel());
   }
   private async preflight() {
     await this.connections?.preflight?.(this.matchId!);
@@ -243,11 +246,22 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
     return false;
   }
   private async maintain() {
-    if (this.disposed || this.draining || !this.store || !this.matchId || (this.isReady && !this.isReady())) { this.bots?.cancel(); return; }
+    if (this.disposed || this.draining || this.stopTerminalMaintenance() || !this.store || !this.matchId || (this.isReady && !this.isReady())) { this.bots?.cancel(); return; }
     await this.preflight();
     const record = await this.store.load(this.matchId);
     if (!record || this.disposed) return;
-    if (record.revision >= this.state.revision) { applySnapshot(this.state, publicSnapshot(record)); this.bots?.schedule(record); }
+    if (record.revision >= this.state.revision) {
+      applySnapshot(this.state, publicSnapshot(record));
+      if (!this.stopTerminalMaintenance()) this.bots?.schedule(record);
+    }
+  }
+  private stopTerminalMaintenance(): boolean {
+    if (this.state.phase !== 'finished' && this.state.phase !== 'void') return false;
+    clearInterval(this.maintenance); this.maintenance = undefined; this.bots?.cancel();
+    // Keep final snapshots available to connected clients. Colyseus disposes
+    // once empty (including an already-empty room), without deleting its ledger.
+    this.autoDispose = true;
+    return true;
   }
   onBeforeShutdown() { this.draining = true; this.bots?.cancel(); void this.disconnect(); }
   async onDispose() {

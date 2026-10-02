@@ -1,6 +1,6 @@
 # Enochian implementation approval and execution ledger
 
-Snapshot: 2026-10-02, Task 15 documentation commit. This ledger records subsequent user authorization and supersedes stale planning-only status statements in the companion handoff/specifications/plan. A committed implementation is not proof of every release acceptance gate. The final reviews found a sign-in request-method defect and are investigating completed-room cleanup; corrections and their verification will be appended to the same PR before it is marked ready.
+Snapshot: 2026-10-02, final review corrections. This ledger records subsequent user authorization and supersedes stale planning-only status statements in the companion handoff/specifications/plan. A committed implementation is not proof of every release acceptance gate. Final independent spec and quality reviews identified three defects: sign-in request method, root website routing and terminal-room cleanup. All three were corrected and independently rechecked without further actionable findings. One final correction commit follows the 16 task checkpoint commits, preserving published history in the same PR.
 
 ## Execution and review authority
 
@@ -29,9 +29,11 @@ Approved workers: GPT-6.1 Sol Medium for bounded implementation, with the main a
 | 12 | Embedded browser SDKs, authoritative client and outside-frame sign-in handoff | `30464ee`; real two-browser acceptance passed, physical-device/platform gates pending |
 | 13 | Security/operations and Railway configuration | `1c0f716`; deployed successfully, HTTPS/readiness and real WSS room play verified |
 | 14 | Packaging and acceptance tooling | `807bbec`; tooling verified; full release acceptance **not complete** |
-| 15 | Updated handoff/specifications/plan, READMEs and canceled draft | This documentation commit |
+| 15 | Updated handoff/specifications/plan, READMEs and canceled draft | `c13b3ad` |
 
-Keep one commit per task. Root supplies final verification evidence and checkpoint hashes; do not substitute task checkbox completion for the outstanding device/platform/deployment gates below.
+Each planned task has one checkpoint commit. PR [#1](https://github.com/khrollo963/Chess-Eternal-Blitz-/pull/1) contains all 16 checkpoints plus the final review correction commit; no published task history was rewritten. Do not substitute implementation completion for the outstanding device/platform/release gates below.
+
+Final frontend batch: **83 passed, 0 failed**. Final backend batch: **138 passed, 7 hosted checks skipped, 0 failed, 9,378 assertions**, 145 cases across 31 files. The earlier isolated hosted batch covers those same seven database cases; its adapter/migration code is unchanged. Final production build, preservation, engine freshness and embedded SDK/license checks passed. Independent rechecks covered the actual sign-in button POST, exact root/query launcher HTML, and finished/void room disposal while preserving final HTTP recovery.
 
 ### Latest root verification report
 

@@ -23,7 +23,14 @@ test('website serves canonical pages and public response-only endpoint behind ra
       }
       expect(source).toBe(readFileSync(new URL(`../../${name}`, import.meta.url), 'utf8'));
     }
-    expect((await fetch(endpoint + '/')).status).toBe(200);
+    const root = await fetch(endpoint + '/');
+    expect(root.status).toBe(200);
+    expect(root.headers.get('content-type')).toContain('text/html');
+    expect(await root.text()).toBe(readFileSync(new URL('../../index.html', import.meta.url), 'utf8'));
+    const sharedRoot = await fetch(endpoint + '/?invite=PUBLIC-CODE', { headers: { Origin: origin } });
+    expect(await sharedRoot.text()).toBe(readFileSync(new URL('../../index.html', import.meta.url), 'utf8'));
+    expect(sharedRoot.headers.get('access-control-allow-origin')).toBe(origin);
+    expect((await fetch(endpoint + '/', { headers: { Origin: 'null' } })).status).toBe(403);
     expect((await fetch(endpoint + '/enochian.html', { headers: { Origin: 'null' } })).status).toBe(403);
     expect((await fetch(endpoint + '/server/.env.local')).status).toBe(404);
     expect(() => registerClientPages(app, 'http://remote.example')).toThrow();

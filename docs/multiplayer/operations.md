@@ -1,6 +1,6 @@
 # Multiplayer operations
 
-Updated 2026-10-02. The user approved Railway creation and deployment using the recommended setup. The project, production environment, service and public domain have been created, and workspace spending controls have been saved. **No source is attached and no deployment has run yet.** The dedicated private `enochian_chess` schema was explicitly initialized and migration version 1 verified. Local transport and security tests establish local behavior; external TLS, physical-device/platform operation and live account-provider flows remain unverified.
+Updated 2026-10-02. The user approved Railway creation and deployment using the recommended setup. Deployment `794a55b9-7014-4135-9ec9-cabc0958a684` succeeded from `807bbec`; external health/readiness returned 200 with Bun 1.4.2. The [hosted arcade](https://game-server-production-5449.up.railway.app/index.html) loaded over HTTPS, and two browser tabs completed real WSS room creation/join, readiness, Red/Blue moves and server bot turns. The dedicated private `enochian_chess` schema was explicitly initialized and migration version 1 verified. Physical-device/platform play, live account-provider flows and backup restoration remain unverified.
 
 ## Approved target and budget
 
@@ -9,15 +9,15 @@ Updated 2026-10-02. The user approved Railway creation and deployment using the 
 | Railway project | `enochian-colyseus` — `8824efb5-55ea-49af-ba5a-83b2d5e84774` |
 | Environment | `production` — `f154cf92-c4a5-4838-b047-75e1fe27d698` |
 | Service | `game-server` — `6a756513-4fd8-4c76-b2d1-fdbcfcf4f5d0` |
-| Public endpoint | [game-server-production-5449.up.railway.app](https://game-server-production-5449.up.railway.app), target port `3000`; domain creation does not establish a working deployed service |
+| Public endpoint | [Hosted arcade](https://game-server-production-5449.up.railway.app/index.html), target port `3000`; real HTTPS/WSS smoke verified |
 | Region | US East Metal, Virginia, `us-east4-eqdc4a` |
 | Runtime | One process, one replica; sleeping disabled; no Redis or autoscaling |
 | Plan | Existing Hobby plan, unchanged |
 | Spending controls | Workspace compute hard cap **$10**, alert threshold **$5**, saved and verified in the Railway usage dialog |
-| Source to attach | `khrollo963/Chess-Eternal-Blitz-`, branch `codex/task-0-readable-game-pages`; switch to `main` after the PR merges |
+| Attached source | `khrollo963/Chess-Eternal-Blitz-`, branch `codex/task-0-readable-game-pages`; user switches to `main` after the PR merges |
 | Database | Existing privately configured Supabase PostgreSQL **Session pooler**, dedicated schema `enochian_chess`, strict TLS certificate validation |
 
-Region, replica count and sleeping settings are staged through explicit service settings. Source attachment and deployment are pending. Initial Railway discovery and the unauthenticated plugin/CLI limitation were superseded by the approved setup and verified UI spending-control save. No Railway PostgreSQL substitute is part of this setup.
+Region, replica count and sleeping settings are applied through explicit service settings. The exact repository source and branch were verified from provider configuration and deployment metadata. The Railway UI reports automatic deployment unavailable for this connection; use controlled manual deployment. No Railway PostgreSQL substitute is part of this setup.
 
 The saved thresholds bound approved workspace compute spending; they are not measured application usage or proof of continuous availability. Reaching the hard cap can interrupt service. Actual utilization, external egress and database-plan costs still need observation. The region choice is geographical, not a measured latency result; privately verify the selected database's actual region and latency during launch checks. Railway's [pricing](https://docs.railway.com/pricing/plans), [spending behavior](https://docs.railway.com/pricing/understanding-your-bill) and [region reference](https://docs.railway.com/deployments/regions) remain operator references.
 
@@ -57,7 +57,7 @@ Installed `@colyseus/bun-websockets@0.18.3` dispatches its router and OPTIONS be
 
 Fixed-window defaults are 120 HTTP requests/minute/source, 30 invitation attempts/minute/source, 120 authentication/matchmaking/identity attempts/minute/source, 30 WebSocket upgrades/minute/source, and 60 actions/10 seconds/actor or connection. Sign-in polls every five seconds so four users behind a shared trusted edge peer fit these budgets. A shared 2,000-request/minute aggregate cap supplements network scopes. Network maps contain at most 2,048 keys per category; the combined action map contains at most 4,096 keys. Saturation rejects new keys instead of evicting live buckets, and rejected attempts do not extend windows. These are staging limits, not measured production sizing.
 
-Source identity comes only from Bun's native `server.requestIP(request)`. Railway edge peers can share quotas; that conservative grouping is intentional. Unknown peers share a safe bucket. `X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Proto` and Colyseus `context.ip` are never quota keys or TLS proof. The fixed `railway-edge-only` policy trusts the approved deployment boundary rather than a client header: the operator must verify that public access is through Railway's HTTPS edge. **External ingress/TLS behavior has not yet been observed.** The explicit `local-fixture` adapter requires a loopback listener and an actual loopback peer, and makes no external TLS claim.
+Source identity comes only from Bun's native `server.requestIP(request)`. Railway edge peers can share quotas; that conservative grouping is intentional. Unknown peers share a safe bucket. `X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Proto` and Colyseus `context.ip` are never quota keys or TLS proof. The fixed `railway-edge-only` policy trusts the approved deployment boundary rather than a client header. Real HTTPS pages and WSS multiplayer were observed through the configured Railway domain. The explicit `local-fixture` adapter requires a loopback listener and an actual loopback peer, and makes no external TLS claim.
 
 ## Verified local coverage and remaining launch checks
 

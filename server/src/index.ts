@@ -39,7 +39,11 @@ export function createGameServer(options: {
   const transport = options.transportSecurity
     ? new SecureBunWebSockets(websocketOptions, { security: options.transportSecurity, ingressPolicy: options.ingressPolicy ?? 'railway-edge-only', clock: options.clock })
     : new BunWebSockets(websocketOptions);
-  const server = new Server({ transport, gracefullyShutdown: false, greet: false });
+  const server = new Server({ transport, gracefullyShutdown: false, greet: false,
+    // Declare the existing Express app so Colyseus checks its registered root
+    // route before adding the router's default banner on the Bun transport.
+    express: () => {},
+  });
   const delegates = options.delegates ?? { authenticate: () => false };
   const lobby = options.store ? new LobbyService({ store: options.store, rankedEnabled: options.rankedEnabled, clock: options.clock }) : undefined;
   const casual = options.store && lobby ? new CasualService({ store: options.store, lobby, clock: options.clock }) : undefined;

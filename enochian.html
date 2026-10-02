@@ -2048,7 +2048,7 @@ if(typeof document!=='undefined'){
       byId('mpConnectEndpoint').onclick=()=>{try{core.setEndpoint(byId('mpEndpoint').value.trim());configureIdentity();status('Development address selected.');}catch{status('Use an HTTPS backend or a loopback development address, after leaving the room.');}};
       byId('mpSignIn').onclick=async()=>{
         const popup=window.open('about:blank','_blank');try{
-          const generation=++authGeneration;if(authTimer)clearTimeout(authTimer);const next=await core.http('/identity/handoffs');
+          const generation=++authGeneration;if(authTimer)clearTimeout(authTimer);const next=await core.http('/identity/handoffs',{});
           if(generation!==authGeneration){popup?.close();return;}handoff=next;
           const url=core.view().endpoint+'/signin#handoff='+encodeURIComponent(handoff.handoffId)+'&complete='+encodeURIComponent(handoff.completionSecret);
           byId('mpSignInLink').href=url;byId('mpSignInLink').hidden=false;

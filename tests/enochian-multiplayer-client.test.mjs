@@ -121,6 +121,19 @@ test('authorization is private POST/socket data and safe endpoint configuration 
   assert.doesNotMatch(JSON.stringify(f.core.view()),/signed.token/);assert.throws(()=>f.lib.endpoint('http://remote.example'),/invalid_endpoint/);assert.throws(()=>f.lib.endpoint('https://user:secret@example.com'),/invalid_endpoint/);
 });
 
+test('Open sign-in posts an empty object to the handoff route before opening its return page',async()=>{
+  // Execute the actual button handler; the core's HTTP method comes from its body argument.
+  const f=fixture({fetch:async()=>({ok:true,json:async()=>({handoffId:'HANDOFF',completionSecret:'PRIVATE',pollSecret:'POLL',expiresAt:300000})})});
+  const handler=script.match(/byId\('mpSignIn'\)\.onclick=async\(\)=>\{([\s\S]*?)\n      \};/)[1];
+  const elements=new Map(),popup={opener:{},location:'about:blank',close(){this.closed=true;}},consumed=[];
+  const context=vm.createContext({core:f.core,authGeneration:0,authTimer:null,handoff:null,encodeURIComponent,clearTimeout,window:{open:()=>popup},byId:id=>{if(!elements.has(id))elements.set(id,{});return elements.get(id);},consumeHandoff:()=>consumed.push(true)});
+  await vm.runInContext(`(async()=>{${handler}})()`,context);
+  assert.equal(f.requests[0].url,'http://127.0.0.1:2567/identity/handoffs');
+  assert.equal(f.requests[0].init.method,'POST');assert.deepEqual(f.requests[0].body,{});
+  assert.equal(popup.location,'http://127.0.0.1:2567/signin#handoff=HANDOFF&complete=PRIVATE');
+  assert.equal(popup.opener,null);assert.equal(elements.get('mpSignInLink').hidden,false);assert.equal(consumed.length,1);
+});
+
 test('unavailable backend fails predictably and retains independent local-play functions',async()=>{
   const f=fixture({fetch:async()=>{throw new Error('private-backend-error');}});
   assert.equal(await f.core.create({mode:'casual',name:'Alice',color:'R'}),false);assert.equal(f.core.view().joined,false);assert.match(f.statuses.at(-1),/Local play remains available/);assert.doesNotMatch(f.statuses.join(' '),/private-backend-error/);
