@@ -9,10 +9,15 @@ import type { PostgresStoreOptions } from '../storage/PostgresMatchStore.js';
 import { createSupabaseIdentity, readSupabaseIdentityConfig } from '../identity/supabase.js';
 import { publicEndpoint, TransportSecurity } from '../http/transport-security.js';
 import { registerClientPages } from '../http/client-pages.js';
+import { readLobbyCapacity } from '../storage/lobby-capacity.js';
+import { runGlobalMaintenance } from './global-maintenance.js';
 
 export async function startServer(env: Record<string, string | undefined>, options: { signals?: boolean; storeHooks?: PostgresStoreOptions['hooks'] } = {}) {
+  // Validate before durable-runtime errors are converted into unavailable readiness.
+  readLobbyCapacity(env);
   const config = readConfig(env);
   const identity = readSupabaseIdentityConfig(env);
+  if (config.rankedEnabled && !identity) throw new Error('Ranked requires identity configuration');
   let transportSecurity: TransportSecurity | undefined;
   const needsSecurity = env.NODE_ENV === 'production' || !!env.MULTIPLAYER_PUBLIC_ENDPOINT || !!env.MULTIPLAYER_ALLOWED_ORIGINS || !!env.MULTIPLAYER_INGRESS_POLICY;
   if (needsSecurity) {
@@ -34,7 +39,7 @@ export async function startServer(env: Record<string, string | undefined>, optio
     const room = matchMaker.getLocalRoomById(record.lobby.roomId) as EnochianRoom | undefined;
     room?.publishCommitted(publicSnapshot(record));
   };
-  app = createGameServer({ store: durable?.store, identityConfig: identity, verifyAuth: identity ? createSupabaseIdentity(identity) : undefined,
+  app = createGameServer({ store: durable?.store, rankedEnabled: config.rankedEnabled, identityConfig: identity, verifyAuth: identity ? createSupabaseIdentity(identity) : undefined,
     transportSecurity, ingressPolicy: transportSecurity ? 'railway-edge-only' : undefined,
     isReady: () => ready && !!durable?.runtime.healthy,
     connections: durable ? {
@@ -74,24 +79,20 @@ export async function startServer(env: Record<string, string | undefined>, optio
         const room = await matchMaker.createRoom('enochian', { matchId, creationPermit });
         return room.roomId;
       });
-      await durable.settlePending();
+      await durable.settlePending({ drain: true });
       ready = durable.runtime.healthy;
       let busy = false;
       maintenance = setInterval(() => {
         if (busy || !ready) return;
         busy = true;
-        void (async () => {
-          for (const record of await durable.store.listRecoverable()) {
-            const result = await durable.recovery.expireLobby(record.matchId) ?? await durable.recovery.expire(record.matchId);
-            if (result) {
-              const latest = await durable.store.load(record.matchId) as RecoveryRecord;
+        void runGlobalMaintenance({ store: durable.store, recovery: durable.recovery, now: Date.now(), settlePending: () => durable.settlePending(),
+          async onCommitted(matchId) {
+              const latest = await durable.store.load(matchId) as RecoveryRecord;
               publish(latest);
               const room = latest.lobby.roomId ? matchMaker.getLocalRoomById(latest.lobby.roomId) : undefined;
               if (latest.phase === 'void' && room && room.clients.length === 0) await room.disconnect();
-            }
           }
-          await durable.settlePending();
-        })().catch(error => {
+        }).catch(error => {
           // Another accepted action winning CAS is normal; the next tick rechecks.
           if (error instanceof Error && error.message === 'stale_revision') return;
           ready = false; void close();

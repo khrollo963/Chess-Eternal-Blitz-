@@ -51,6 +51,7 @@ test('ranked SDK admission requires the freshly verified original account and fo
     expect((await post('/invitations/recover', { matchId: first.matchId, credential: first.credential }, 'Bearer R')).status).toBe(401);
     const configuration = await (await fetch(endpoint + '/identity/config')).json();
     expect(configuration.providers).toEqual(['email']);
+    expect(configuration.rankedEnabled).toBe(true);
     expect(JSON.stringify(configuration)).not.toContain('DATABASE_URL');
   } finally {
     // Server drain preserves infrastructure semantics instead of intentional player Leave.

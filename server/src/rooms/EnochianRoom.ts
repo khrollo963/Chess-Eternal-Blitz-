@@ -65,6 +65,9 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
   private bots?: BotScheduler;
   private exchange?: ExchangeService;
   private maintenance?: ReturnType<typeof setInterval>;
+  private maintenanceWork?: Promise<void>;
+  // Public snapshots may arrive before private bot state has been refreshed.
+  private maintainedRevision = -1;
   private disposed = false;
   private draining = false;
   private transportSecurity?: TransportSecurity;
@@ -95,12 +98,12 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
         this.stopTerminalMaintenance();
       };
       publish(publicSnapshot((await this.store.load(this.matchId))!));
-      const committed = (snapshot: PublicSnapshot) => { publish(snapshot); void this.maintain().catch(() => this.bots?.cancel()); };
+      const committed = (snapshot: PublicSnapshot) => { publish(snapshot); void this.maintain().catch(() => this.suspendBots()); };
       const moves = new CommandProcessor({ store: this.store, publish: committed, clock: options.clock });
       this.exchange = new ExchangeService({ store: this.store, publish: committed, clock: options.clock });
       this.bots = new BotScheduler({ ...options.botOptions, store: this.store, processor: moves, clock: options.clock,
         afterJob: () => this.maintain() });
-      this.maintenance = setInterval(() => { void this.maintain().catch(() => this.bots?.cancel()); }, 1000);
+      this.maintenance = setInterval(() => { void this.maintain().catch(() => this.suspendBots()); }, 1000);
       this.maintenance.unref();
       await this.maintain();
       this.onMessage('command', async (client, payload: unknown) => {
@@ -228,7 +231,7 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
   }
   publishCommitted(snapshot: PublicSnapshot) {
     if (snapshot.matchId === this.matchId && snapshot.revision >= this.state.revision) applySnapshot(this.state, snapshot);
-    if (!this.stopTerminalMaintenance()) void this.maintain().catch(() => this.bots?.cancel());
+    if (!this.stopTerminalMaintenance()) void this.maintain().catch(() => this.suspendBots());
   }
   private async preflight() {
     await this.connections?.preflight?.(this.matchId!);
@@ -245,12 +248,29 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
     client.send('ack', { ok: false, code, retryable: code === 'rate_limited' });
     return false;
   }
-  private async maintain() {
-    if (this.disposed || this.draining || this.stopTerminalMaintenance() || !this.store || !this.matchId || (this.isReady && !this.isReady())) { this.bots?.cancel(); return; }
-    await this.preflight();
+  private maintain(): Promise<void> {
+    // Commit callbacks and the interval may race; share one metadata/read pass.
+    return this.maintenanceWork ??= this.maintainOnce().finally(() => { this.maintenanceWork = undefined; });
+  }
+  private suspendBots() {
+    this.bots?.cancel();
+    // A transient readiness/read failure must not strand a cancelled bot at an
+    // unchanged revision once authoritative storage becomes available again.
+    this.maintainedRevision = -1;
+  }
+  private async maintainOnce() {
+    if (this.disposed || this.draining || this.stopTerminalMaintenance() || !this.store || !this.matchId || (this.isReady && !this.isReady())) { this.suspendBots(); return; }
+    const head = await this.store.maintenanceHead(this.matchId);
+    if (!head) { this.suspendBots(); return; }
+    const due = head.nextDeadline !== null && head.nextDeadline <= this.actionClock();
+    if (!due && head.revision === this.maintainedRevision) return;
+    // Idle ticks only transfer revision/deadline scalars. Absolute deadlines and
+    // action/auth preflight still reload authoritative state before mutation.
+    if (due) await this.preflight();
     const record = await this.store.load(this.matchId);
-    if (!record || this.disposed) return;
+    if (!record || this.disposed || this.draining) return;
     if (record.revision >= this.state.revision) {
+      this.maintainedRevision = record.revision;
       applySnapshot(this.state, publicSnapshot(record));
       if (!this.stopTerminalMaintenance()) this.bots?.schedule(record);
     }

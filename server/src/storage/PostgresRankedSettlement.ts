@@ -3,6 +3,7 @@ import { type Color, type MatchRecord } from '../domain/match.js';
 import { isUnstartedVoid, rankedRoster } from '../domain/ranked-admission.js';
 import { buildRankedSettlement, type RankedAccountRating, type RankedRecord, type RankedSettlementPlan } from '../domain/ranked.js';
 import { databaseError, schemaIdentifier, transaction } from './postgres.js';
+import { maintenanceLimit } from './maintenance.js';
 
 /** Private ledger output. Transport must use a separate public allowlist. */
 export interface RankedSettlement extends RankedSettlementPlan { settlementId: string }
@@ -18,12 +19,13 @@ export class PostgresRankedSettlement {
   constructor(private readonly pool: Pool, private readonly options: PostgresRankedSettlementOptions) {
     this.schema = schemaIdentifier(options.schema);
   }
-  async listPending(): Promise<string[]> {
+  async listPending(limit = 64): Promise<string[]> {
+    maintenanceLimit(limit);
     try {
       const result = await this.pool.query(`SELECT m.match_id FROM ${this.schema}.matches m
         WHERE m.phase IN ('finished','void') AND m.record->>'mode'='ranked'
         AND NOT EXISTS (SELECT 1 FROM ${this.schema}.settlements s WHERE s.match_id=m.match_id)
-        ORDER BY m.match_id`);
+        ORDER BY m.match_id LIMIT $1`, [limit]);
       return result.rows.map(row => row.match_id as string);
     } catch { throw databaseError(); }
   }

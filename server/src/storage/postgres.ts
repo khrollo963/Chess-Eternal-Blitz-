@@ -1,5 +1,6 @@
 import { Pool, type PoolConfig, type PoolClient } from 'pg';
 import { AdmissionError } from '../domain/ranked-admission.js';
+import { LobbyCapacityError } from './lobby-capacity.js';
 
 export function schemaIdentifier(schema: string): string {
   if (!/^enochian_[a-z0-9_]{1,48}$/.test(schema)) throw new Error('Invalid private database schema');
@@ -37,7 +38,7 @@ export async function transaction<T>(pool: Pool, operation: (client: PoolClient)
     return value;
   } catch (error) {
     try { await client.query('ROLLBACK'); } catch { broken = true; }
-    if (error instanceof AdmissionError) throw error;
+    if (error instanceof AdmissionError || error instanceof LobbyCapacityError) throw error;
     throw databaseError();
   } finally { client.release(broken); }
 }

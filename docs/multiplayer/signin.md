@@ -20,4 +20,15 @@ Handoffs expire strictly at 300,000 milliseconds after creation, including durin
 
 The email template must expose the OTP code for this code-entry flow. The server `/signin` origin must be configured in Supabase's redirect allowlist before social PKCE callbacks or email links can work. Each social provider also needs its own credentials and redirect configuration. These operator actions belong to the later launch configuration task. No live provider settings were changed and no real email was sent during implementation tests.
 
+### Follow-up live configuration correction
+
+On 2026-10-02 the authorized email check delivered a magic link pointing to `http://localhost:3000` rather than a code. The application already sends `emailRedirectTo: location.origin + '/signin'`; its code entry uses `verifyOtp` with `type: 'email'`. Correct the project's dashboard configuration rather than rewriting a received link or treating the callback authorization code as an email OTP:
+
+1. Verify project `inxedkdsggcqmeexgyur` (Chess-Eternal-Blitz).
+2. Authentication → URL Configuration: set Site URL to `https://game-server-production-5449.up.railway.app`; preserve existing legitimate entries and add the exact redirect `https://game-server-production-5449.up.railway.app/signin`. Do not add wildcards.
+3. Authentication → Email Templates: use [email-code-template.html](email-code-template.html) for Magic Link and Confirm signup, exposing `{{ .Token }}` for existing and first-time email users. A suitable subject is “Your Chess Eternal sign-in code”. Preserve unrelated reset/invite/email-change templates and provider settings.
+4. Start a new handoff from the hosted game, request a fresh email, enter its numeric code within the game's five-minute handoff window, and verify the game receives its one-time completion. Do not log the code, callback URL, return code or session tokens.
+
+The connector exposes project details but no Auth configuration write tool in this session. The user supplied a screenshot of the corrected production Site URL and exact /signin redirect entry. Code-template configuration and live verification remain pending. Current Supabase [passwordless email docs](https://supabase.com/docs/guides/auth/auth-email-passwordless) describe using `{{ .Token }}` in place of the default confirmation link; [redirect docs](https://supabase.com/docs/guides/auth/redirect-urls) require `emailRedirectTo` to match an allowed URL.
+
 Tests cover secret separation, public-ID rejection, wrong/manual secrets, exact expiry, bounded capacity, verification authority and redaction, restart, duplicate/racing completion and consume, disabled identity, HTTP responses and anti-framing headers. They fetch the actual locally bundled sign-in HTML, verify its SDK license/version and script syntax, and execute its application script against provider/DOM stubs to verify explicit email submission, OTP verification, fragment clearing and access-token-only completion. They do not establish a live email delivery, social-provider redirect, or real browser OAuth session.

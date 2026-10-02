@@ -489,6 +489,11 @@
 .mp-panel label{display:block;font-size:13px;margin:8px 0}.mp-panel input,.mp-panel select{box-sizing:border-box;background:var(--panel);color:var(--parchment);border:1px solid var(--gold-bright);padding:9px;max-width:100%;font:inherit}
 .mp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.mp-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.mp-actions button{min-height:40px}
 .mp-panel button:disabled{opacity:.45;cursor:not-allowed}.mp-status{line-height:1.6;min-height:28px;overflow-wrap:anywhere}.mp-roster{padding:0;list-style:none;line-height:1.9}.mp-private{font-size:12px;opacity:.85}.mp-invite{width:100%}[hidden]{display:none!important}
+.mp-notifications{position:fixed;top:max(16px,env(safe-area-inset-top));right:max(16px,env(safe-area-inset-right));width:min(420px,calc(100vw - 32px));z-index:10000;display:grid;gap:10px;pointer-events:none}
+.mp-toast{pointer-events:auto;display:flex;align-items:flex-start;gap:12px;padding:16px;color:var(--parchment);background:#241b39;border:2px solid var(--gold-bright);border-left-width:6px;box-shadow:0 8px 28px #0009;font-size:14px;line-height:1.6;overflow-wrap:anywhere;animation:mp-toast-enter .18s ease-out}
+.mp-toast[data-tone="error"]{border-color:#ff8585}.mp-toast[data-tone="warning"]{border-color:#f5cf73}.mp-toast[data-tone="success"]{border-color:#8fd6a2}.mp-toast span{flex:1}.mp-toast button{flex:none;min-width:36px;min-height:36px;border:1px solid currentColor;background:transparent;color:inherit;font:inherit;cursor:pointer}.mp-toast button:focus-visible{outline:3px solid var(--gold-bright);outline-offset:3px}
+#mpFeedback:not(:empty){padding:10px 12px;border-left:4px solid var(--gold-bright);background:#241b39}#mpFeedback[data-tone="error"]{border-color:#ff8585;color:#ffd1d1}
+@keyframes mp-toast-enter{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}@media(prefers-reduced-motion:reduce){.mp-toast{animation:none}}
 </style>
 <!-- ENOCHIAN_MULTIPLAYER_UI_END -->
 </head>
@@ -542,12 +547,13 @@
               <div class="mp-actions" id="mpExchange"><select id="mpCounterpart" aria-label="Other human captor"></select><button id="mpOffer" class="choice-btn">Offer prisoner exchange</button><button id="mpAccept" class="choice-btn" hidden>Accept exchange</button><button id="mpReject" class="choice-btn" hidden>Reject exchange</button></div>
               <p id="mpOfferStatus" class="mp-status"></p>
             </div>
-            <details><summary>Account sign-in</summary><p>Sign in outside this game frame. Ranked stays unavailable until its release checks pass.</p><div class="mp-actions"><button id="mpSignIn" class="choice-btn">Open sign-in</button><a id="mpSignInLink" target="_blank" rel="noopener noreferrer" hidden>Open sign-in in another tab</a><input id="mpReturnCode" maxlength="22" placeholder="Manual return code" aria-label="Manual sign-in return code"><button id="mpRedeem" class="choice-btn">Use return code</button><button id="mpSignOut" class="choice-btn" hidden>Sign out</button></div><p id="mpIdentityStatus" class="mp-status">Not signed in.</p></details>
+            <details><summary>Account sign-in</summary><p>Sign in outside this game frame. Ranked requires four different signed-in accounts and has no bots.</p><div class="mp-actions"><button id="mpSignIn" class="choice-btn">Open sign-in</button><a id="mpSignInLink" target="_blank" rel="noopener noreferrer" hidden>Open sign-in in another tab</a><input id="mpReturnCode" maxlength="22" placeholder="Manual return code" aria-label="Manual sign-in return code"><button id="mpRedeem" class="choice-btn">Use return code</button><button id="mpSignOut" class="choice-btn" hidden>Sign out</button></div><p id="mpIdentityStatus" class="mp-status">Not signed in.</p></details>
             <details id="mpAdvanced" hidden><summary>Development connection</summary><label>Backend address <input id="mpEndpoint" type="url" placeholder="http://127.0.0.1:2567"></label><button id="mpConnectEndpoint" class="choice-btn">Use address</button></details>
             <p class="mp-private">Seat credentials stay in this tab's memory. Keep the room code to invite friends; it cannot recover your seat. Returning after a dropped connection uses the original private credential.</p>
           </div>
           <p id="mpStatus" class="mp-status" role="status" aria-live="polite">Local play is available offline.</p>
-          <p id="mpFeedback" class="mp-status" role="status" aria-live="polite"></p>
+          <p id="mpFeedback" class="mp-status"></p>
+          <div id="mpNotifications" class="mp-notifications" aria-label="Game notifications"></div>
         </div>
 <!-- ENOCHIAN_MULTIPLAYER_CONTROLS_END -->
         <div id="startMenu" class="card" style="text-align:center; max-width:600px; margin:24px auto;">
@@ -1806,6 +1812,47 @@ globalThis.EnochianMultiplayerCore = (() => {
   const object = input => input?.toJSON ? input.toJSON() : input;
   const entries = input => input instanceof Map || (input?.entries && typeof input.entries === 'function') ? [...input.entries()] : Object.entries(object(input) || {});
   const deadline = input => input === null || input === undefined || input === -1 ? null : Number.isSafeInteger(input) && input >= 0 ? input : null;
+  const errorMessages=Object.freeze({
+    color_unavailable:'That color is taken; choose another color.',
+    not_found:'That room code is invalid or expired. Check the invitation.',
+    deadline_expired:'This invitation or return window has expired. Ask the host for a new room.',
+    room_full:'This room is full. Ask the host for a new room.',
+    invalid_phase:'This room has already started or ended. Ask for a new invitation.',
+    unauthorized:'Your identity or seat could not be verified. For ranked, sign in again; for casual, use your original tab.',
+    ranked_disabled:'Ranked is currently unavailable. Choose casual play.',
+    duplicate_account:'This account already has a seat in this room. Use your original tab.',
+    ranked_match_locked:'Finish or recover your current ranked match before joining another.',
+    ranked_cooldown:'Your ranked entry restriction is still active. Try again when it ends.',
+    invalid_name:'Enter a name of 1–32 characters without markup.',
+    invalid_color:'Choose one of the four available colors.',
+    invalid_command:'The request could not be accepted. Check your entries and try again.',
+    rate_limited:'Too many requests. Wait a moment and try again.',
+    lobby_capacity:'The service has too many open lobbies. Wait for a room to start or expire, then try again.',
+    duplicate_connection:'This seat is connected in another tab. Return to your original tab.',
+    storage_unavailable:'The game service is temporarily unavailable. Try again shortly. Local play remains available.',
+    identity_unavailable:'Account sign-in is unavailable. Casual and local play remain available.',
+    incompatible_state:'This client needs an update. Leave and reload the game.'
+  });
+  const errorMessage=(code,fallback)=>Object.hasOwn(errorMessages,code)?errorMessages[code]:fallback;
+  function createNotifications({host,document,setTimeout,clearTimeout}){
+    const notices=[];
+    function show(message,tone='info'){
+      if(!message||!host)return;
+      tone=['info','success','warning','error'].includes(tone)?tone:'info';
+      if(notices.some(n=>n.message===message&&n.tone===tone))return;
+      while(notices.length>=3)notices[0].dismiss();
+      const node=document.createElement('div'),text=document.createElement('span'),close=document.createElement('button');
+      node.className='mp-toast';node.dataset.tone=tone;node.setAttribute('role',tone==='error'?'alert':'status');node.setAttribute('aria-atomic','true');
+      text.textContent=message;close.type='button';close.textContent='×';close.setAttribute('aria-label','Dismiss notification');node.appendChild(text);node.appendChild(close);
+      let timer=null,hovered=false,focused=false;
+      const notice={message,tone,dismiss(){if(timer!==null)clearTimeout(timer);node.remove();const index=notices.indexOf(notice);if(index>=0)notices.splice(index,1);}};
+      const pause=()=>{if(timer!==null)clearTimeout(timer);timer=null;};
+      const resume=()=>{pause();if(tone!=='error'&&tone!=='warning'&&!hovered&&!focused)timer=setTimeout(()=>notice.dismiss(),6000);};
+      node.onmouseenter=()=>{hovered=true;pause();};node.onmouseleave=()=>{hovered=false;resume();};node.onfocusin=()=>{focused=true;pause();};node.onfocusout=event=>{focused=node.contains(event.relatedTarget);resume();};close.onclick=()=>notice.dismiss();
+      notices.push(notice);host.appendChild(node);resume();
+    }
+    return Object.freeze({show,clear:()=>{while(notices.length)notices[0].dismiss();}});
+  }
   function projection(input){
     const raw = object(input);
     if(!raw || typeof raw.matchId !== 'string' || raw.matchId.length > 128 || !Number.isSafeInteger(raw.revision) || raw.revision < 0 || raw.protocolVersion !== 1 || raw.rulesVersion !== 'enochian-current-1' || !phases.includes(raw.phase) || !['casual','ranked'].includes(raw.mode) || !colors.includes(raw.turn) || !Number.isSafeInteger(raw.moveCount) || raw.moveCount < 0) throw new Error('incompatible_state');
@@ -1842,7 +1889,7 @@ globalThis.EnochianMultiplayerCore = (() => {
   }
   function create(options){
     let address=endpoint(options.endpoint), room=null, ticket=null, epoch=0, snapshot=null, ownColor=null, authorization=null, pending=null, pendingTimer=null, connected=false, opening=false;
-    let serial=0; const notify=(message)=>options.onStatus?.(message), emit=()=>options.onChange?.(view());
+    let serial=0; const notify=(message,tone='info')=>options.onStatus?.(message,tone), emit=()=>options.onChange?.(view());
     const view=()=>({snapshot,ownColor,connected,opening,pending:pending?{requestId:pending.requestId,type:pending.type}:null,joined:!!ticket,endpoint:address});
     const clearPending=()=>{if(pendingTimer) options.clearTimeout(pendingTimer);pendingTimer=null;pending=null;};
     const http=async(path,body)=>{
@@ -1850,7 +1897,11 @@ globalThis.EnochianMultiplayerCore = (() => {
       const controller=new AbortController(); const timer=options.setTimeout(()=>controller.abort(),8000);
       try{
         const response=await options.fetch(address+path,{method:body===undefined?'GET':'POST',headers:{'Content-Type':'application/json',...(authorization?{Authorization:authorization}:{})},...(body===undefined?{}:{body:JSON.stringify(body)}),signal:controller.signal,redirect:'error',cache:'no-store'});
-        if(!response.ok) throw new Error('request_failed');
+        if(!response.ok){
+          let code='request_failed';
+          try{const body=await response.json();if(typeof body?.code==='string'&&Object.hasOwn(errorMessages,body.code))code=body.code;}catch{/* Never display provider error bodies. */}
+          throw new Error(code);
+        }
         return await response.json();
       }finally{options.clearTimeout(timer);}
     };
@@ -1865,21 +1916,21 @@ globalThis.EnochianMultiplayerCore = (() => {
       if(session!==epoch){next.reconnection&&(next.reconnection.enabled=false);next.leave?.();return false;}
       room=next;connected=true;next.reconnection&&(next.reconnection.enabled=false);
       const current=()=>session===epoch && room===next;
-      next.onStateChange(value=>{if(!current())return;try{accept(value);}catch{notify('This client needs an update. Leave and reload the game.');}});
+      next.onStateChange(value=>{if(!current())return;try{accept(value);}catch{notify('This client needs an update. Leave and reload the game.','error');}});
       next.onMessage('ack',ack=>{
         if(!current() || !ack || typeof ack!=='object')return;
         let colorChanged=false;
         if(pending && ack.requestId===pending.requestId){
           if(ack.ok && pending.action.type==='color'){ownColor=pending.action.color;colorChanged=true;}
           clearPending();
-          notify(ack.ok?'Confirmed.':ack.retryable?'The command was not accepted. Try again after the state updates.':'Command rejected: '+String(ack.code||'invalid_command').replace(/[^a-z_]/g,'').slice(0,48));
+          notify(ack.ok?'Confirmed.':ack.retryable?'The command was not accepted. Try again after the state updates.':errorMessage(ack.code,'The command was rejected. Check the current game state and try again.'),ack.ok?'success':'error');
         }
-        if(ack.snapshot){try{accept(ack.snapshot);}catch{notify('Received incompatible state. Reload to update.');}}
+        if(ack.snapshot){try{accept(ack.snapshot);}catch{notify('Received incompatible state. Reload to update.','error');}}
         if(colorChanged&&snapshot)options.onSnapshot?.(snapshot,ownColor);
         emit();
       });
-      const dropped=()=>{if(!current())return;connected=false;clearPending();notify('Connection lost. Reconnect to your original seat; accepted moves remain final.');emit();};
-      next.onLeave(dropped);next.onDrop?.(dropped);next.onError?.(()=>{if(current())notify('Connection unavailable. Use Reconnect to recover your seat.');});
+      const dropped=()=>{if(!current()||!connected)return;connected=false;clearPending();notify('Connection lost. Reconnect to your original seat; accepted moves remain final.','warning');emit();};
+      next.onLeave(dropped);next.onDrop?.(dropped);next.onError?.(()=>{if(current())notify('Connection unavailable. Use Reconnect to recover your seat.','error');});
       if(next.state?.matchId) accept(next.state);
       emit();return true;
     }
@@ -1892,8 +1943,8 @@ globalThis.EnochianMultiplayerCore = (() => {
         if(typeof created.matchId!=='string'||typeof created.credential!=='string'||typeof created.roomId!=='string'||typeof created.code!=='string')throw new Error('invalid_ticket');
         ticket={matchId:created.matchId,credential:created.credential,code:created.code};
         if(colors.includes(created.color))ownColor=created.color;
-        const attached=await attach(created,session);if(!attached)return false;opening=false;notify('Connected. Choose your color and confirm Ready.');emit();return true;
-      }catch{if(session===epoch){opening=false;notify('Unable to open the room. Check the code, color and connection. Local play remains available.');emit();}return false;}
+        const attached=await attach(created,session);if(!attached)return false;opening=false;notify('Connected. Choose your color and confirm Ready.','success');emit();return true;
+      }catch(error){if(session===epoch){opening=false;notify(errorMessage(error.message,'Unable to open the room. Check the code and connection. Local play remains available.'),'error');emit();}return false;}
     }
     async function recover(){
       if(!ticket)return false;
@@ -1905,8 +1956,8 @@ globalThis.EnochianMultiplayerCore = (() => {
         if(colors.includes(route.color))ownColor=route.color;
         if(route.snapshot){const applied=accept(route.snapshot);if(!applied&&snapshot)options.onSnapshot?.(snapshot,ownColor);notify('This match is final.');emit();return true;}
         if(typeof route.roomId!=='string')throw new Error('unavailable');
-        const attached=await attach(route,session);if(!attached)return false;notify('Seat recovered.');return true;
-      }catch{if(session===epoch){notify('Seat recovery unavailable or expired. Keep this tab open to retry.');emit();}return false;}
+        const attached=await attach(route,session);if(!attached)return false;notify('Seat recovered.','success');return true;
+      }catch(error){if(session===epoch){notify(errorMessage(error.message,'Seat recovery unavailable or expired. Keep this tab open to retry.'),'error');emit();}return false;}
     }
     async function leave(consented=true){
       ++epoch;const old=detach();ticket=null;snapshot=null;ownColor=null;opening=false;emit();
@@ -1919,9 +1970,9 @@ globalThis.EnochianMultiplayerCore = (() => {
       if(type==='exchange_command' && (snapshot.phase!=='active'||!snapshot.alive[ownColor]||!snapshot.seats[ownColor]?.connected||snapshot.seats[ownColor]?.controller!=='human'))return false;
       const requestId='c_'+options.randomId()+'_'+(++serial);
       pending={requestId,type,action};emit();
-      pendingTimer=options.setTimeout(()=>{if(pending?.requestId===requestId){clearPending();notify('Confirmation delayed. Reconnect to load the latest committed state before trying again.');connected=false;emit();}},8000);
+      pendingTimer=options.setTimeout(()=>{if(pending?.requestId===requestId){clearPending();notify('Confirmation delayed. Reconnect to load the latest committed state before trying again.','warning');connected=false;emit();}},8000);
       try{room.send(type,{requestId,matchId:ticket.matchId,expectedRevision:snapshot.revision,protocolVersion:1,rulesVersion:'enochian-current-1',action});return true;}
-      catch{clearPending();connected=false;notify('Connection lost before confirmation. Reconnect to check the committed state.');emit();return false;}
+      catch{clearPending();connected=false;notify('Connection lost before confirmation. Reconnect to check the committed state.','error');emit();return false;}
     }
     return Object.freeze({view,create:input=>enter('/invitations',input),join:input=>enter('/invitations/join',input),recover,leave,send,http,
       invite:()=>ticket?{code:ticket.code}:null,
@@ -1929,14 +1980,16 @@ globalThis.EnochianMultiplayerCore = (() => {
       setEndpoint:value=>{if(ticket)throw new Error('room_active');address=endpoint(value);emit();}
     });
   }
-  return Object.freeze({projection,endpoint,create});
+  return Object.freeze({projection,endpoint,create,createNotifications});
 })();
 
 // 10. UI adapters wrap local functions; the protected engine never changes.
 if(typeof document!=='undefined'){
   (()=>{
-    let online=false, core=null, localColor=null, identityConfig=null, handoff=null, authTimer=null, authGeneration=0, resultShown=null;
+    let online=false, core=null, localColor=null, identityConfig=null, handoff=null, authTimer=null, authGeneration=0, resultShown=null, notifications=null, lastPhase=null;
     const byId=id=>document.getElementById(id), status=text=>{byId('mpStatus').textContent=text;};
+    const feedback=(text,tone='info')=>{byId('mpFeedback').textContent=text;byId('mpFeedback').dataset.tone=tone;if(tone!=='info'&&text!=='Confirmed.')notifications?.show(text,tone);};
+    const identityStatus=(text,tone='info')=>{byId('mpIdentityStatus').textContent=text;notifications?.show(text,tone);};
     const config=window.ENOCHIAN_MULTIPLAYER_CONFIG||{};
     const names={R:'Red',B:'Blue',Y:'Yellow',K:'Black'};
     const originals={makeMove,startGame,resetGame,backToMainMenu,maybeRunCpuTurn,isColorCpu,onBoardClick,updateTurnIndicator};
@@ -1975,10 +2028,17 @@ if(typeof document!=='undefined'){
       byId('mpOfferStatus').textContent=offer?'Exchange offered by '+names[offer.proposer]+' to '+names[offer.counterpart]+'. Expires at '+new Date(offer.expiresAt).toLocaleTimeString()+'.':'Only eligible connected human captors may exchange prisoners.';
       if(state){
         byId('resetBtn').textContent='Leave match';byId('speedToggleBtn').style.display='none';
-        if(state.phase==='lobby')status(view.pending?'Waiting for confirmation…':'Lobby: at least two humans must connect and confirm Ready.');
+        if(state.phase==='lobby')status(view.pending?'Waiting for confirmation…':state.mode==='ranked'?'Ranked lobby: all four signed-in humans must connect and confirm Ready.':'Lobby: at least two humans must connect and confirm Ready.');
         else if(state.phase==='paused')status(state.recoveryDeadline?'Service recovery paused. Return grace ends at '+new Date(state.recoveryDeadline).toLocaleTimeString()+'.':'Ranked match paused until all four humans return within their remaining allowances.');
         else if(state.phase==='active')status(view.pending?'Waiting for server confirmation…':view.connected?'Playing '+names[view.ownColor]+'. '+names[state.turn]+' to move.':'Disconnected. Recover your original seat.');
         else if(state.terminalResult)status(state.terminalResult.kind==='void'?'Match void: '+(state.terminalResult.reason||'ended'):'Match complete. '+(state.terminalResult.winningTeam===1?'Red and Yellow':'Blue and Black')+' win.');
+      }
+      const phaseKey=state?state.matchId+':'+state.phase:null;
+      if(phaseKey!==lastPhase){
+        lastPhase=phaseKey;
+        if(state?.phase==='paused')feedback(byId('mpStatus').textContent,'warning');
+        else if(state?.phase==='active')feedback('Match active. '+names[state.turn]+' to move.','success');
+        else if(state?.terminalResult)feedback(byId('mpStatus').textContent,state.phase==='void'?'warning':'success');
       }
       originals.updateTurnIndicator();
       if(online&&state?.phase!=='active')byId('turnIndicator').textContent=state?.phase==='paused'?'Match paused':state?.terminalResult?'Match final':'Waiting for Ready';
@@ -2000,7 +2060,7 @@ if(typeof document!=='undefined'){
     function chooseMode(value){
       if(value===online)return;
       if(value){localColor=game.playerColor;online=true;localCpu.menu();clearSelection();hideGameOverOverlay();byId('startMenu').style.display='none';byId('gamePlayArea').style.display='none';}
-      else{core?.leave();online=false;game.playerColor=localColor;originals.backToMainMenu();byId('resetBtn').textContent='Main Menu';status('Local play is available offline.');}
+      else{core?.leave();online=false;notifications?.clear();byId('mpFeedback').textContent='';game.playerColor=localColor;originals.backToMainMenu();byId('resetBtn').textContent='Main Menu';status('Local play is available offline.');}
       byId('mpControls').hidden=!online;byId('mpLocal').classList.toggle('active',!online);byId('mpOnline').classList.toggle('active',online);
     }
     makeMove=function(fr,fc,tr,tc){if(!online)return originals.makeMove(fr,fc,tr,tc);return core.send('command',{type:'move',fr,fc,tr,tc});};
@@ -2009,17 +2069,19 @@ if(typeof document!=='undefined'){
     onBoardClick=function(event){const view=core?.view();if(online&&(!view?.connected||view.pending||view.snapshot?.phase!=='active'||view.snapshot.turn!==view.ownColor))return;return originals.onBoardClick(event);};
     updateTurnIndicator=function(){originals.updateTurnIndicator();if(online){byId('speedToggleBtn').style.display='none';if(core?.view().snapshot?.phase!=='active')byId('turnIndicator').textContent='Waiting or paused';}};
     startGame=function(){if(online){chooseMode(false);}return originals.startGame();};
-    resetGame=function(){if(online){status('Leave this match before starting a local game.');return;}return originals.resetGame();};
+    resetGame=function(){if(online){feedback('Leave this match before starting a local game.','warning');return;}return originals.resetGame();};
     backToMainMenu=function(){if(online){chooseMode(false);return;}return originals.backToMainMenu();};
     async function configureIdentity(){
       const generation=++authGeneration;
+      const ranked=byId('mpMode').querySelector('option[value="ranked"]');ranked.disabled=true;ranked.textContent='Ranked — unavailable';
+      byId('mpMode').value='casual';byId('mpSignIn').disabled=true;
       try{
         const next=await core.http('/identity/config');if(generation!==authGeneration)return;
         identityConfig=next;
-        const ranked=byId('mpMode').querySelector('option[value="ranked"]');ranked.disabled=!next.rankedEnabled;ranked.textContent=next.rankedEnabled?'Ranked — four humans':'Ranked — unavailable';
+        ranked.disabled=next.rankedEnabled!==true;ranked.textContent=next.rankedEnabled===true?'Ranked — four humans':'Ranked — unavailable';
         byId('mpSignIn').disabled=!next.url||!next.publishableKey;
         byId('mpIdentityStatus').textContent=next.url?'Email sign-in is available in a separate tab.':'Account sign-in is not configured.';
-      }catch{if(generation===authGeneration){byId('mpSignIn').disabled=true;byId('mpIdentityStatus').textContent='Account service unavailable. Casual and local play remain available.';}}
+      }catch{if(generation===authGeneration){byId('mpSignIn').disabled=true;identityStatus('Account service unavailable. Casual and local play remain available.','error');}}
     }
     async function consumeHandoff(returnCode){
       if(!handoff)return;
@@ -2028,35 +2090,36 @@ if(typeof document!=='undefined'){
         const response=await core.http('/identity/handoffs/consume',{handoffId:handoff.handoffId,pollSecret:handoff.pollSecret,...(returnCode?{returnCode}:{})});
         if(generation!==authGeneration||!handoff)return;
         if(response.pending){if(Date.now()<handoff.expiresAt)authTimer=setTimeout(()=>consumeHandoff(),5000);else throw new Error('expired');return;}
-        core.setAuthorization(response.authorization);handoff=null;byId('mpReturnCode').value='';byId('mpSignInLink').hidden=true;byId('mpSignOut').hidden=false;byId('mpIdentityStatus').textContent='Signed in with your persistent game account.';
-      }catch{if(generation===authGeneration&&handoff)byId('mpIdentityStatus').textContent='Sign-in not completed. Check the return code or open a new sign-in.';}
+        core.setAuthorization(response.authorization);handoff=null;byId('mpReturnCode').value='';byId('mpSignInLink').hidden=true;byId('mpSignOut').hidden=false;identityStatus('Signed in with your persistent game account.','success');
+      }catch{if(generation===authGeneration&&handoff)identityStatus('Sign-in not completed. Check the return code or open a new sign-in.','error');}
     }
     document.addEventListener('DOMContentLoaded',()=>{
-      core=EnochianMultiplayerCore.create({endpoint:config.endpoint||'',fetch:(...args)=>window.fetch(...args),client:address=>new Colyseus.Client(address),...timers,randomId:requestId,onStatus:text=>{byId('mpFeedback').textContent=text;},onChange:render,onSnapshot:paint});
-      byId('mpLocal').onclick=()=>chooseMode(false);byId('mpOnline').onclick=()=>{chooseMode(true);if(!core.view().endpoint)status('Multiplayer is not configured on this page. Local play works offline.');};
+      notifications=EnochianMultiplayerCore.createNotifications({host:byId('mpNotifications'),document,...timers});
+      core=EnochianMultiplayerCore.create({endpoint:config.endpoint||'',fetch:(...args)=>window.fetch(...args),client:address=>new Colyseus.Client(address),...timers,randomId:requestId,onStatus:feedback,onChange:render,onSnapshot:paint});
+      byId('mpLocal').onclick=()=>chooseMode(false);byId('mpOnline').onclick=()=>{chooseMode(true);if(!core.view().endpoint)feedback('Multiplayer is not configured on this page. Local play works offline.','warning');};
       const input=()=>({mode:byId('mpMode').value,name:byId('mpName').value.trim(),color:byId('mpColor').value});
       byId('mpCreate').onclick=()=>{game.moveLog=[];resultShown=null;core.create(input());};
       byId('mpJoin').onclick=()=>{game.moveLog=[];resultShown=null;core.join({...input(),code:byId('mpCode').value.trim().toUpperCase()});};
       byId('mpReady').onclick=()=>core.send('lobby_command',{type:'ready',ready:!core.view().snapshot?.seats[core.view().ownColor]?.ready});
       byId('mpColor').onchange=()=>{if(core.view().joined)core.send('lobby_command',{type:'color',color:byId('mpColor').value});};
       byId('mpReconnect').onclick=()=>core.recover();byId('mpLeave').onclick=()=>{core.leave();originals.backToMainMenu();chooseMode(false);};
-      byId('mpCopy').onclick=async()=>{try{await navigator.clipboard.writeText(byId('mpInvite').value);status('Invite link copied. Friends can also enter the room code.');}catch{byId('mpInvite').select();status('Copy the selected invite link or share the room code manually.');}};
+      byId('mpCopy').onclick=async()=>{try{await navigator.clipboard.writeText(byId('mpInvite').value);feedback('Invite link copied. Friends can also enter the room code.','success');}catch{byId('mpInvite').select();feedback('Copy the selected invite link or share the room code manually.','warning');}};
       byId('mpOffer').onclick=()=>core.send('exchange_command',{type:'offer',counterpart:byId('mpCounterpart').value});
       byId('mpAccept').onclick=()=>core.send('exchange_command',{type:'accept',offerId:core.view().snapshot?.exchangeOffer?.id});
       byId('mpReject').onclick=()=>core.send('exchange_command',{type:'reject',offerId:core.view().snapshot?.exchangeOffer?.id});
       byId('mpAdvanced').hidden=!config.allowCustomEndpoint;byId('mpEndpoint').value=core.view().endpoint;
-      byId('mpConnectEndpoint').onclick=()=>{try{core.setEndpoint(byId('mpEndpoint').value.trim());configureIdentity();status('Development address selected.');}catch{status('Use an HTTPS backend or a loopback development address, after leaving the room.');}};
+      byId('mpConnectEndpoint').onclick=()=>{try{core.setEndpoint(byId('mpEndpoint').value.trim());configureIdentity();feedback('Development address selected.','success');}catch{feedback('Use an HTTPS backend or a loopback development address, after leaving the room.','error');}};
       byId('mpSignIn').onclick=async()=>{
         const popup=window.open('about:blank','_blank');try{
           const generation=++authGeneration;if(authTimer)clearTimeout(authTimer);const next=await core.http('/identity/handoffs',{});
           if(generation!==authGeneration){popup?.close();return;}handoff=next;
           const url=core.view().endpoint+'/signin#handoff='+encodeURIComponent(handoff.handoffId)+'&complete='+encodeURIComponent(handoff.completionSecret);
           byId('mpSignInLink').href=url;byId('mpSignInLink').hidden=false;
-          if(popup){popup.opener=null;popup.location=url;}byId('mpIdentityStatus').textContent='Complete sign-in in the separate tab. If needed, enter its manual return code here.';consumeHandoff();
-        }catch{popup?.close();byId('mpIdentityStatus').textContent='Sign-in service unavailable.';}
+          if(popup){popup.opener=null;popup.location=url;}identityStatus('Complete sign-in in the separate tab. If needed, enter its manual return code here.');consumeHandoff();
+        }catch{popup?.close();identityStatus('Sign-in service unavailable.','error');}
       };
       byId('mpRedeem').onclick=()=>{if(authTimer)clearTimeout(authTimer);consumeHandoff(byId('mpReturnCode').value.trim());};
-      byId('mpSignOut').onclick=()=>{++authGeneration;if(authTimer)clearTimeout(authTimer);handoff=null;core.setAuthorization(null);byId('mpSignOut').hidden=true;byId('mpIdentityStatus').textContent='Signed out of this game tab.';};
+      byId('mpSignOut').onclick=()=>{++authGeneration;if(authTimer)clearTimeout(authTimer);handoff=null;core.setAuthorization(null);byId('mpSignOut').hidden=true;identityStatus('Signed out of this game tab.','success');};
       const invite=new URLSearchParams(location.search).get('invite');if(invite&&/^[A-Za-z0-9_-]{1,24}$/.test(invite)){byId('mpCode').value=invite;chooseMode(true);}
       render(core.view());if(core.view().endpoint)configureIdentity();else byId('mpSignIn').disabled=true;
       window.addEventListener('pagehide',()=>{++authGeneration;if(authTimer)clearTimeout(authTimer);core.leave(false);localCpu.menu();});
