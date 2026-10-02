@@ -3,9 +3,10 @@ import { COLORS, type MatchRecord } from '../domain/match.js';
 import type { LobbyRecord, LobbyStore } from './LobbyStore.js';
 import type { CommitResult, MatchCommit, StoredCommand } from './MatchStore.js';
 import { databaseError, schemaIdentifier, transaction } from './postgres.js';
+import { reconcileRankedAdmission } from './PostgresRankedAdmission.js';
 
 export interface PostgresStoreOptions {
-  schema: string; maxCommandsPerMatch?: number;
+  schema: string; maxCommandsPerMatch?: number; clock?: () => number;
   /** Failure injection only; production composition must not supply hooks. */
   hooks?: { beforeCommit?: (input: MatchCommit) => void | Promise<void>; afterCommit?: (input: MatchCommit) => void | Promise<void> };
 }
@@ -45,6 +46,7 @@ export class PostgresMatchStore implements LobbyStore {
       VALUES ($1,$2,$3,$4,$5,$6) ${allowInviteCollision ? 'ON CONFLICT (invite_code) DO NOTHING' : ''} RETURNING match_id`,
     [record.matchId, record.revision, record.phase, metadata?.inviteCode ?? null, metadata?.roomId ?? null, JSON.stringify(record)]);
     if (!query.rowCount) return false;
+    await reconcileRankedAdmission(client, this.schema, record, null, (this.options.clock ?? Date.now)());
     await this.saveSnapshot(client, record);
     await this.saveSeatsAndDeadlines(client, record);
     return true;
@@ -64,7 +66,7 @@ export class PostgresMatchStore implements LobbyStore {
   }
   async commit(input: MatchCommit): Promise<CommitResult> {
     const result = await transaction(this.pool, async client => {
-      const locked = await client.query(`SELECT revision FROM ${this.schema}.matches WHERE match_id=$1 FOR UPDATE`, [input.matchId]);
+      const locked = await client.query(`SELECT revision,record FROM ${this.schema}.matches WHERE match_id=$1 FOR UPDATE`, [input.matchId]);
       if (!locked.rowCount) return { status: 'conflict' } as const;
       const previous = await client.query(`SELECT * FROM ${this.schema}.commands WHERE match_id=$1 AND actor_id=$2 AND request_id=$3`,
         [input.matchId, input.command.actorId, input.command.requestId]);
@@ -73,6 +75,7 @@ export class PostgresMatchStore implements LobbyStore {
       const count = await client.query(`SELECT count(*)::integer AS count FROM ${this.schema}.commands WHERE match_id=$1`, [input.matchId]);
       if (count.rows[0].count >= this.maxCommands) return { status: 'capacity' } as const;
       if (input.next.matchId !== input.matchId || input.next.revision !== input.expectedRevision + 1) throw databaseError();
+      await reconcileRankedAdmission(client, this.schema, input.next, locked.rows[0].record, (this.options.clock ?? Date.now)());
       const metadata = lobby(input.next);
       await client.query(`UPDATE ${this.schema}.matches SET revision=$2,phase=$3,invite_code=$4,room_id=$5,record=$6 WHERE match_id=$1`,
         [input.matchId, input.next.revision, input.next.phase, metadata?.inviteCode ?? null, metadata?.roomId ?? null, JSON.stringify(input.next)]);

@@ -8,6 +8,8 @@ import type { LobbyStore, VerifiedAuth } from './storage/LobbyStore.js';
 import { registerInvitations } from './http/invitations.js';
 import { CasualService } from './domain/CasualService.js';
 import type { BotTimer } from './domain/bots.js';
+import type { SupabaseIdentityConfig } from './identity/supabase.js';
+import { registerIdentityConfiguration } from './http/identity.js';
 
 export function createGameServer(options: {
   delegates?: RoomDelegates;
@@ -15,6 +17,7 @@ export function createGameServer(options: {
   idleTimeout?: number;
   store?: LobbyStore;
   verifyAuth?: (authorization: string | undefined) => Promise<VerifiedAuth | undefined>;
+  identityConfig?: SupabaseIdentityConfig;
   rankedEnabled?: boolean;
   isReady?: () => boolean;
   connections?: ConnectionHooks;
@@ -36,13 +39,14 @@ export function createGameServer(options: {
     depart: (matchId: string, connectionId: string, intentional: boolean) => options.isReady && !options.isReady() ? Promise.resolve(true) : casual.depart(matchId, connectionId, intentional),
   } : undefined);
   server.define("enochian", EnochianRoom, { delegates, reconnectionSeconds: options.reconnectionSeconds, lobby, store: options.store,
-    isReady: options.isReady, connections, casual, clock: options.clock, botOptions: options.botOptions });
+    isReady: options.isReady, verifyAuth: options.verifyAuth, connections, casual, clock: options.clock, botOptions: options.botOptions });
   const app = transport.getExpressApp();
   app.get("/health", (_req, res) => res.json({ status: "ok", ...runtimeDiagnostics() }));
   // Memory-only preflight is not production multiplayer readiness.
   app.get("/ready", (_req, res) => options.isReady?.() ? res.json({ ready: true })
     : res.status(503).json({ ready: false, reason: "durable-store-not-configured-or-recovering" }));
   if (lobby) registerInvitations(app, lobby, options.verifyAuth, options.isReady);
+  registerIdentityConfiguration(app, options.identityConfig, options.rankedEnabled ?? false);
   return { server, transport, app, engine: canonicalEngine, lobby, casual };
 }
 

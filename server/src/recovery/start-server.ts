@@ -6,9 +6,11 @@ import { publicSnapshot } from '../domain/match.js';
 import type { RecoveryRecord } from './RecoveryCoordinator.js';
 import type { EnochianRoom } from '../rooms/EnochianRoom.js';
 import type { PostgresStoreOptions } from '../storage/PostgresMatchStore.js';
+import { createSupabaseIdentity, readSupabaseIdentityConfig } from '../identity/supabase.js';
 
 export async function startServer(env: Record<string, string | undefined>, options: { signals?: boolean; storeHooks?: PostgresStoreOptions['hooks'] } = {}) {
   const config = readConfig(env);
+  const identity = readSupabaseIdentityConfig(env);
   let ready = false, closing: Promise<void> | undefined;
   let app: ReturnType<typeof createGameServer> | undefined;
   let maintenance: ReturnType<typeof setInterval> | undefined;
@@ -18,7 +20,8 @@ export async function startServer(env: Record<string, string | undefined>, optio
     const room = matchMaker.getLocalRoomById(record.lobby.roomId) as EnochianRoom | undefined;
     room?.publishCommitted(publicSnapshot(record));
   };
-  app = createGameServer({ store: durable?.store, isReady: () => ready && !!durable?.runtime.healthy,
+  app = createGameServer({ store: durable?.store, identityConfig: identity, verifyAuth: identity ? createSupabaseIdentity(identity) : undefined,
+    isReady: () => ready && !!durable?.runtime.healthy,
     connections: durable ? {
       async connect(matchId, credential, connectionId) {
         await durable.recovery.expire(matchId);

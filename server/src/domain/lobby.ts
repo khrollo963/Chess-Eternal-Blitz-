@@ -151,7 +151,7 @@ export class LobbyService {
       return await this.save(record, ownerId!, requestId, fingerprint, action);
     } catch (error) {
       const code = error instanceof Error ? error.message : 'storage_unavailable';
-      const known = ['unauthorized', 'stale_revision', 'deadline_expired', 'invalid_phase', 'not_found'];
+      const known = ['unauthorized', 'stale_revision', 'deadline_expired', 'invalid_phase', 'not_found', 'ranked_cooldown', 'ranked_match_locked'];
       const safeCode = known.includes(code) ? code as CommandResult['code'] : code === 'color_unavailable' ? 'invalid_command' : code === 'command_capacity' ? 'command_capacity' : 'storage_unavailable';
       return { ok: false, code: safeCode, retryable: safeCode === 'stale_revision' || safeCode === 'storage_unavailable', requestId };
     }

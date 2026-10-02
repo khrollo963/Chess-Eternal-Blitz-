@@ -2,6 +2,7 @@ import { Room, type Client, type AuthContext } from "@colyseus/core";
 import { EnochianState, applySnapshot, type PublicState } from "./EnochianState.js";
 import type { LobbyService, LobbyAction } from '../domain/lobby.js';
 import type { LobbyStore } from '../storage/LobbyStore.js';
+import type { VerifiedAuth } from '../storage/LobbyStore.js';
 import { CommandProcessor } from '../domain/commands.js';
 import type { ActorContext } from '../domain/commands.js';
 import { publicSnapshot, type PublicSnapshot } from '../domain/match.js';
@@ -31,6 +32,7 @@ export interface RoomScaffoldOptions {
   creationPermit?: string;
   isReady?: () => boolean;
   connections?: ConnectionHooks;
+  verifyAuth?: (authorization: string | undefined) => Promise<VerifiedAuth | undefined>;
   casual?: CasualService;
   clock?: () => number;
   botOptions?: { scheduler?: BotTimer; random?: () => number; maxNodes?: number; delayMs?: number };
@@ -52,6 +54,7 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
   private matchId?: string;
   private isReady?: () => boolean;
   private connections?: ConnectionHooks;
+  private verifyAuth?: (authorization: string | undefined) => Promise<VerifiedAuth | undefined>;
   private droppedSessions = new Set<string>();
   private casual?: CasualService;
   private bots?: BotScheduler;
@@ -65,7 +68,7 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
   }
   private async createRoom(options: RoomScaffoldOptions) {
     this.delegates = options.delegates;
-    this.isReady = options.isReady; this.connections = options.connections;
+    this.isReady = options.isReady; this.connections = options.connections; this.verifyAuth = options.verifyAuth;
     this.casual = options.casual;
     this.reconnectionSeconds = options.reconnectionSeconds ?? 5;
     this.setState(new EnochianState());
@@ -138,6 +141,12 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
       await this.preflight();
       const credential = (options as { credential?: unknown } | null)?.credential;
       const auth = await this.lobby.authenticate(this.matchId!, credential);
+      if (auth.record.mode === 'ranked') {
+        const supplied = (options as { authorization?: unknown } | null)?.authorization;
+        const authorization = typeof supplied === 'string' ? supplied : context.token ? `Bearer ${context.token}` : context.headers.get('authorization') ?? undefined;
+        const identity = await this.verifyAuth?.(authorization);
+        if (!identity || identity.accountId !== auth.owner.accountId) throw new Error('unauthorized');
+      }
       if (auth.record.seats[auth.color].controller === 'bot') throw new Error('deadline_expired');
       if (auth.record.phase === 'finished' || auth.record.phase === 'void') throw new Error('invalid_phase');
       if (auth.owner.connectionId !== null) throw new Error('duplicate_connection');

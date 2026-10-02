@@ -16,7 +16,7 @@ export function registerInvitations(app: App, lobby: LobbyService, verifyAuth?: 
   };
   const safeError = (error: unknown) => {
     const code = error instanceof Error ? error.message : '';
-    const allowed = ['invalid_command','invalid_name','invalid_color','invalid_mode','unauthorized','duplicate_account','duplicate_connection','deadline_expired','invalid_phase','not_found','room_full','color_unavailable','ranked_disabled','stale_revision'];
+    const allowed = ['invalid_command','invalid_name','invalid_color','invalid_mode','unauthorized','duplicate_account','duplicate_connection','deadline_expired','invalid_phase','not_found','room_full','color_unavailable','ranked_disabled','ranked_match_locked','ranked_cooldown','stale_revision'];
     return allowed.includes(code) ? code : 'storage_unavailable';
   };
   app.post('/invitations', async (req, res) => {
@@ -55,7 +55,11 @@ export function registerInvitations(app: App, lobby: LobbyService, verifyAuth?: 
     if (isReady && !isReady()) { res.status(503).json({ code: 'storage_unavailable' }); return; }
     try {
       const data = body(req.body);
-      const { record } = await lobby.authenticate(data.matchId as string, data.credential);
+      const { record, owner } = await lobby.authenticate(data.matchId as string, data.credential);
+      if (record.mode === 'ranked') {
+        const verified = await verifyAuth?.(req.headers.authorization);
+        if (!verified || verified.accountId !== owner.accountId) throw new Error('unauthorized');
+      }
       if (record.phase === 'finished' || record.phase === 'void') { res.json({ matchId: record.matchId, snapshot: publicSnapshot(record) }); return; }
       res.json({ matchId: record.matchId, roomId: record.lobby.roomId });
     } catch { res.status(401).json({ code: 'unauthorized' }); }
