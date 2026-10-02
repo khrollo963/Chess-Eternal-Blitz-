@@ -499,6 +499,12 @@
 .enochian-guide .guide-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin:22px 0}
 .enochian-guide .guide-block{background:var(--panel);border:1px solid var(--mystical);padding:22px}
 .enochian-guide .guide-block p:last-child{margin-bottom:0}
+.enochian-guide .guide-element-spirit{--guide-element:#f5f0ff}
+.enochian-guide .guide-element-fire{--guide-element:#ff8a7a}
+.enochian-guide .guide-element-water{--guide-element:#65d9f0}
+.enochian-guide .guide-element-air{--guide-element:var(--c-yellow)}
+.enochian-guide .guide-element-earth{--guide-element:#b9b7c5}
+.enochian-guide .guide-element h3,.enochian-guide .guide-element strong{color:var(--guide-element)}
 .enochian-guide .guide-section{margin:30px 0;scroll-margin-top:20px}
 .enochian-guide .guide-callout{padding:18px 22px;border-left:4px solid var(--gold);background:var(--panel2);margin:20px 0}
 .enochian-guide .guide-steps{list-style:none;counter-reset:guide-step;padding:0;margin:22px 0}
@@ -708,11 +714,11 @@
     <section class="tab-panel enochian-guide" id="tab-meanings" aria-label="Enochian piece meanings">
       <header class="guide-header"><p class="guide-kicker">The symbolic army</p><h2 class="pixel">Piece Meanings</h2><p>The pieces carry Egyptian names and elemental associations in Golden Dawn ritual descriptions. Their symbolism adds context; movement is governed by the playing guide.</p></header>
       <div class="guide-grid">
-        <article class="guide-block"><h3 class="pixel">King · Spirit</h3><p><strong>Osiris</strong> (Aeshoori), the spiritual center of the army.</p><p>In play: one square in any direction. Losing the king freezes its army.</p></article>
-        <article class="guide-block"><h3 class="pixel">Knight · Fire</h3><p><strong>Horus</strong> (Hoor), associated with Fire.</p><p>In play: an L-shaped leap over intervening pieces.</p></article>
-        <article class="guide-block"><h3 class="pixel">Queen · Water</h3><p><strong>Isis</strong>, associated with Water.</p><p>In play: an exact two-square leap, straight or diagonal.</p></article>
-        <article class="guide-block"><h3 class="pixel">Bishop · Air</h3><p><strong>Aroueris</strong>, associated with Air.</p><p>In play: travels diagonally until blocked.</p></article>
-        <article class="guide-block"><h3 class="pixel">Rook · Earth</h3><p><strong>Nephthys</strong>, associated with Earth.</p><p>In play: travels along a row or column until blocked.</p></article>
+        <article class="guide-block guide-element guide-element-spirit"><h3 class="pixel">King · Spirit</h3><p><strong>Osiris</strong> (Aeshoori), the spiritual center of the army.</p><p>In play: one square in any direction. Losing the king freezes its army.</p></article>
+        <article class="guide-block guide-element guide-element-fire"><h3 class="pixel">Knight · Fire</h3><p><strong>Horus</strong> (Hoor), associated with Fire.</p><p>In play: an L-shaped leap over intervening pieces.</p></article>
+        <article class="guide-block guide-element guide-element-water"><h3 class="pixel">Queen · Water</h3><p><strong>Isis</strong>, associated with Water.</p><p>In play: an exact two-square leap, straight or diagonal.</p></article>
+        <article class="guide-block guide-element guide-element-air"><h3 class="pixel">Bishop · Air</h3><p><strong>Aroueris</strong>, associated with Air.</p><p>In play: travels diagonally until blocked.</p></article>
+        <article class="guide-block guide-element guide-element-earth"><h3 class="pixel">Rook · Earth</h3><p><strong>Nephthys</strong>, associated with Earth.</p><p>In play: travels along a row or column until blocked.</p></article>
         <article class="guide-block"><h3 class="pixel">Pawns · Attendants</h3><p>The four pawns serve the elemental pieces.</p><p>In play: each pawn can restore its own missing major-piece type through promotion.</p></article>
       </div>
       <aside class="guide-callout">The army colors represent elements too: Yellow / Air, Red / Fire, Blue / Water, and Black / Earth. This symbolism does not change the fixed teams.</aside>
