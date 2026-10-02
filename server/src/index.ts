@@ -3,11 +3,17 @@ import { BunWebSockets } from "@colyseus/bun-websockets";
 import { assertRuntime, readConfig, runtimeDiagnostics } from "./config.js";
 import { EnochianRoom, type RoomDelegates } from "./rooms/EnochianRoom.js";
 import { canonicalEngine } from "./engine.js";
+import { LobbyService } from './domain/lobby.js';
+import type { LobbyStore, VerifiedAuth } from './storage/LobbyStore.js';
+import { registerInvitations } from './http/invitations.js';
 
 export function createGameServer(options: {
   delegates?: RoomDelegates;
   reconnectionSeconds?: number;
   idleTimeout?: number;
+  store?: LobbyStore;
+  verifyAuth?: (authorization: string | undefined) => Promise<VerifiedAuth | undefined>;
+  rankedEnabled?: boolean;
 } = {}) {
   assertRuntime();
   const transport = new BunWebSockets({
@@ -17,12 +23,14 @@ export function createGameServer(options: {
   });
   const server = new Server({ transport, gracefullyShutdown: false, greet: false });
   const delegates = options.delegates ?? { authenticate: () => false };
-  server.define("enochian", EnochianRoom, { delegates, reconnectionSeconds: options.reconnectionSeconds });
+  const lobby = options.store ? new LobbyService({ store: options.store, rankedEnabled: options.rankedEnabled }) : undefined;
+  server.define("enochian", EnochianRoom, { delegates, reconnectionSeconds: options.reconnectionSeconds, lobby, store: options.store });
   const app = transport.getExpressApp();
   app.get("/health", (_req, res) => res.json({ status: "ok", ...runtimeDiagnostics() }));
   // Memory-only preflight is not production multiplayer readiness.
   app.get("/ready", (_req, res) => res.status(503).json({ ready: false, reason: "durable-store-not-configured" }));
-  return { server, transport, app, engine: canonicalEngine };
+  if (lobby) registerInvitations(app, lobby, options.verifyAuth);
+  return { server, transport, app, engine: canonicalEngine, lobby };
 }
 
 if (import.meta.main) {
