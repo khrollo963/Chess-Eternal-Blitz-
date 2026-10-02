@@ -4,6 +4,8 @@ import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { createHash, webcrypto } from 'node:crypto';
 import vm from 'node:vm';
+import { checkGamePage } from '../scripts/check-client-preservation.mjs';
+import { readOriginal, extractGames } from '../scripts/client-baseline.mjs';
 
 const html=readFileSync(new URL('../enochian.html',import.meta.url),'utf8');
 const script=html.match(/<script id="enochian-multiplayer-client">([\s\S]*?)<\/script>/)[1];
@@ -19,10 +21,9 @@ function fixture({fetch:customFetch,initial=state(),join:customJoin}={}){
   return {core,rooms,requests,statuses,paints,changes,timers,makeRoom,lib:coreLibrary};
 }
 
-test('Task12 insertion blocks leave protected original source and canonical engine byte-identical',()=>{
-  const strip=source=>source.replace(/<!-- (ENOCHIAN_MULTIPLAYER_UI|ENOCHIAN_MULTIPLAYER_CONTROLS|ENOCHIAN_CLIENT_SDKS|ENOCHIAN_MULTIPLAYER_CLIENT)_BEGIN -->[\s\S]*?<!-- \1_END -->\r?\n?/g,'');
+test('approved multiplayer and guide additions preserve protected source and the canonical engine',()=>{
   const committed=execFileSync('git',['show','HEAD:enochian.html'],{encoding:'utf8',maxBuffer:10*1024*1024});
-  assert.equal(strip(html),strip(committed));
+  checkGamePage('enochian',html,extractGames(readOriginal().toString('utf8')).enochian.bytes.toString('utf8'));
   const engine=source=>source.match(/\/\/ ENOCHIAN_ENGINE_START([\s\S]*?)\/\/ ENOCHIAN_ENGINE_END/)[1];
   assert.equal(createHash('sha256').update(engine(html)).digest('hex'),createHash('sha256').update(engine(committed)).digest('hex'));
 });

@@ -36,10 +36,51 @@ export function checkGamePage(game, current, original) {
   else {
     assert.equal(game, 'enochian', 'Only Enochian has a permitted script boundary');
     current = withoutMultiplayerAdditions(current);
+    assert.deepEqual(inventory(current), inventory(original), 'Enochian keys and inline art, including guides');
+    current = withoutGuideRedesign(current, original);
     assert.equal(outsideInlineScript(current), outsideInlineScript(original), 'Enochian original markup, CSS and bytes outside the existing script are protected');
     assert.match(current, /window\.parent\.addGameSession\('enochian',/, 'Enochian shared statistics bridge');
   }
   assert.deepEqual(inventory(current), inventory(original), `${game} keys and inline art`);
+}
+
+// User-approved guide edits are restricted to their original location, a scoped
+// stylesheet immediately after the original stylesheet, and two guide buttons.
+// Restore those regions from the immutable snapshot before protecting the rest.
+export function withoutGuideRedesign(source, original) {
+  const begin = '<!-- ENOCHIAN_GUIDE_STYLES_BEGIN -->';
+  if (!source.includes(begin)) return source;
+  const end = '<!-- ENOCHIAN_GUIDE_STYLES_END -->';
+  for (const marker of [begin, end, '<!-- ENOCHIAN_GUIDE_CONTENT_BEGIN -->', '<!-- ENOCHIAN_GUIDE_CONTENT_END -->']) {
+    assert.equal(source.split(marker).length - 1, 1, 'Guide markers must be unique and paired');
+  }
+  const styleStart = source.indexOf(begin), styleEnd = source.indexOf(end);
+  assert.equal(styleStart, original.indexOf('</style>') + '</style>\n'.length, 'Guide style follows the original stylesheet');
+  assert.ok(styleEnd > styleStart);
+  assert.equal(source[styleEnd + end.length], '\n');
+  const css = source.slice(styleStart + begin.length, styleEnd).trim();
+  assert.match(css, /^<style>[\s\S]*<\/style>$/);
+  assert.doesNotMatch(css.slice(7, -8), /</, 'Guide styles contain only CSS');
+  assert.doesNotMatch(css, /<script|@import|url\(/i, 'Guide CSS cannot add scripts or remote assets');
+  for (const selector of css.slice(7, -8).replace(/@media[^{}]+\{/g, '').matchAll(/([^{}]+)\{/g)) {
+    for (const item of selector[1].trim().split(',')) {
+      assert.match(item.trim(), /^\.enochian-guide(?:\s|$)/, 'Guide CSS must stay scoped');
+      assert.doesNotMatch(item, /[+~]/, 'Guide CSS cannot select siblings outside its panel');
+    }
+  }
+  source = source.slice(0, styleStart) + source.slice(styleEnd + end.length + 1);
+  const oldNav = '<button class="tab-btn" data-tab="rules">Rules</button>';
+  const newNav = '<button class="tab-btn" data-tab="rules">How to Play</button>\n  <button class="tab-btn" data-tab="meanings">Piece Meanings</button>';
+  assert.equal(source.split(newNav).length - 1, 1, 'Only the approved guide navigation changes');
+  source = source.replace(newNav, oldNav);
+  const start = '    <!-- RULES TAB -->\n', stop = '    <!-- SESSION LOG TAB -->';
+  const startAt = source.indexOf(start), stopAt = source.indexOf(stop);
+  assert.ok(startAt >= 0 && stopAt > startAt, 'Original guide boundaries remain');
+  const content = source.slice(startAt + start.length, stopAt);
+  assert.ok(content.startsWith('    <!-- ENOCHIAN_GUIDE_CONTENT_BEGIN -->\n'));
+  assert.ok(content.endsWith('    <!-- ENOCHIAN_GUIDE_CONTENT_END -->\n\n'));
+  assert.doesNotMatch(content, /<script|<style|\son\w+\s*=/i, 'Guides are static content');
+  return source.slice(0, startAt) + original.slice(original.indexOf(start), original.indexOf(stop)) + source.slice(stopAt);
 }
 
 // Task 0 is the sole approved launcher migration. Later engine work must leave
@@ -75,5 +116,5 @@ export function checkPreservation() {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   checkPreservation();
-  console.log('Preservation verified: exact Chaturaji and Task 0 launcher; original Enochian markup, CSS, keys, art and statistics protected outside approved script and multiplayer islands.');
+  console.log('Preservation verified: exact Chaturaji and Task 0 launcher; Enochian gameplay markup, CSS, keys, art and statistics protected outside approved script, multiplayer and guide boundaries.');
 }

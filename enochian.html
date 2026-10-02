@@ -483,6 +483,38 @@
     .card{ padding:14px 16px; }
   }
 </style>
+<!-- ENOCHIAN_GUIDE_STYLES_BEGIN -->
+<style>
+.enochian-guide{font-size:22px;line-height:1.5;text-align:left}
+.enochian-guide *{box-sizing:border-box}
+.enochian-guide .guide-header{padding:26px 0 20px;border-bottom:2px solid var(--mystical);margin-bottom:24px}
+.enochian-guide h2{color:var(--gold-bright);font-size:16px;line-height:1.8;margin:8px 0 16px}
+.enochian-guide h3{color:var(--gold-bright);font-size:12px;line-height:1.9;margin:0 0 12px}
+.enochian-guide p{max-width:65ch;margin:0 0 14px}
+.enochian-guide .guide-kicker{font-size:18px;color:var(--mystical-light);letter-spacing:2px;text-transform:uppercase}
+.enochian-guide .guide-facts,.enochian-guide .guide-jump{display:flex;gap:10px 24px;flex-wrap:wrap;margin:18px 0 0}
+.enochian-guide .guide-facts span{color:var(--gold-bright)}
+.enochian-guide a{color:var(--gold-bright);text-underline-offset:4px;overflow-wrap:anywhere}
+.enochian-guide a:focus-visible,.enochian-guide summary:focus-visible{outline:3px solid var(--gold-bright);outline-offset:4px}
+.enochian-guide .guide-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin:22px 0}
+.enochian-guide .guide-block{background:var(--panel);border:1px solid var(--mystical);padding:22px}
+.enochian-guide .guide-block p:last-child{margin-bottom:0}
+.enochian-guide .guide-section{margin:30px 0;scroll-margin-top:20px}
+.enochian-guide .guide-callout{padding:18px 22px;border-left:4px solid var(--gold);background:var(--panel2);margin:20px 0}
+.enochian-guide .guide-steps{list-style:none;counter-reset:guide-step;padding:0;margin:22px 0}
+.enochian-guide .guide-steps li{counter-increment:guide-step;position:relative;padding:4px 0 18px 48px;max-width:65ch}
+.enochian-guide .guide-steps li:before{content:counter(guide-step);position:absolute;left:0;color:var(--gold-bright);font-size:32px;line-height:1}
+.enochian-guide .guide-steps strong{display:block;color:var(--gold-bright)}
+.enochian-guide .guide-movement{display:grid;grid-template-columns:120px minmax(0,1fr);margin:0}
+.enochian-guide .guide-movement dt,.enochian-guide .guide-movement dd{padding:14px 0;border-bottom:1px solid var(--mystical);margin:0}
+.enochian-guide .guide-movement dt{color:var(--gold-bright)}
+.enochian-guide details{border-top:1px solid var(--mystical);padding:18px 0}
+.enochian-guide summary{color:var(--gold-bright);cursor:pointer;min-height:36px}
+.enochian-guide details[open] summary{margin-bottom:16px}
+.enochian-guide .guide-sources{padding-left:24px}.enochian-guide .guide-sources li{margin-bottom:12px}
+@media(max-width:640px){.enochian-guide .guide-grid{grid-template-columns:1fr}.enochian-guide .guide-block{padding:18px}.enochian-guide h2{font-size:13px}.enochian-guide .guide-movement{grid-template-columns:86px minmax(0,1fr)}}
+</style>
+<!-- ENOCHIAN_GUIDE_STYLES_END -->
 <!-- ENOCHIAN_MULTIPLAYER_UI_BEGIN -->
 <style>
 .mp-panel{max-width:760px;margin:20px auto;padding:18px;border:2px solid var(--gold-bright);background:var(--panel2);text-align:left}
@@ -515,7 +547,8 @@
 
 <nav class="tabs" id="tabNav">
   <button class="tab-btn active" data-tab="play">Play</button>
-  <button class="tab-btn" data-tab="rules">Rules</button>
+  <button class="tab-btn" data-tab="rules">How to Play</button>
+  <button class="tab-btn" data-tab="meanings">Piece Meanings</button>
   <button class="tab-btn" data-tab="history">History &amp; Lore</button>
   <button class="tab-btn" data-tab="sessionlog">Session Log</button>
   <button class="tab-btn" data-tab="support">Support</button>
@@ -624,112 +657,87 @@
     </section>
 
     <!-- RULES TAB -->
-    <section class="tab-panel" id="tab-rules">
-      <div class="card">
-        <h2 class="pixel">Core Rules</h2>
-        
-        <h3>The Armies</h3>
-        <p>Each color commands 8 pieces: 1 King, 1 Queen, 1 Rook, 1 Bishop, 1 Knight, and 4 Pawns (each pawn associated with a major piece type).</p>
-
-        <div class="rules-grid">
-          <div class="rule-card">
-            <h4>King ♔</h4>
-            <p>Moves one square any direction. Not checkmated; instead, captured outright. When captured, all pieces of that color <strong>freeze</strong> and cannot move.</p>
-          </div>
-          <div class="rule-card">
-            <h4>Queen ♕</h4>
-            <p>Leaps exactly 2 squares in any direction (like an "alibaba"). Special capture rule against other queens: forms a <strong>Concourse</strong> in a 2✕2 with all four queens.</p>
-          </div>
-          <div class="rule-card">
-            <h4>Rook ♖</h4>
-            <p>Moves orthogonally (straight lines). No castling allowed. Participates in board control.</p>
-          </div>
-          <div class="rule-card">
-            <h4>Bishop ♗</h4>
-            <p>Moves diagonally. Opposing bishops are color-bound opposites. Special <strong>Concourse of Bishoping</strong> with all four bishops in a 2✕2.</p>
-          </div>
-          <div class="rule-card">
-            <h4>Knight ♘</h4>
-            <p>Moves exactly as in standard chess: L-shaped jumps (2 squares in one direction, 1 square perpendicular).</p>
-          </div>
-          <div class="rule-card">
-            <h4>Pawns ♙</h4>
-            <p>Each advances toward the opposite team. Yellow toward rank 1, Blue toward file a, Red toward rank 8, Black toward file h. <strong>Promote upon reaching the far edge</strong>—but only if your side has already lost at least one pawn of that type.</p>
-          </div>
+    <!-- ENOCHIAN_GUIDE_CONTENT_BEGIN -->
+    <section class="tab-panel enochian-guide" id="tab-rules" aria-label="How to play Enochian chess">
+      <header class="guide-header">
+        <p class="guide-kicker">The playing guide</p>
+        <h2 class="pixel">How to Play</h2>
+        <p>Four armies share one board. Coordinate with your ally, protect your kings, and capture both opposing kings to win.</p>
+        <div class="guide-facts"><span>4 armies</span><span>2 teams</span><span>9 pieces per army</span></div>
+        <nav class="guide-jump" aria-label="Playing guide sections"><a href="#guide-start">Getting started</a><a href="#guide-moves">Movement</a><a href="#guide-captures">Captures &amp; promotion</a><a href="#guide-exchange">Online exchanges</a></nav>
+      </header>
+      <section class="guide-section" id="guide-start">
+        <h3 class="pixel">Your first game</h3>
+        <ol class="guide-steps">
+          <li><strong>Choose your army.</strong>Red and Yellow are allies; Blue and Black are allies. Each army starts with a king, queen, rook, bishop, knight, and four pawns.</li>
+          <li><strong>Take turns around the board.</strong>The order is Red → Blue → Yellow → Black. Select one of your pieces, then a highlighted destination.</li>
+          <li><strong>Capture the opposing kings.</strong>A captured king freezes its army. Capture the other enemy king to finish the game.</li>
+        </ol>
+        <aside class="guide-callout"><strong>Capture, rather than checkmate.</strong> This build does not enforce check or checkmate. A king may enter an attacked square, so watch the threats yourself.</aside>
+      </section>
+      <section class="guide-section" id="guide-moves">
+        <h3 class="pixel">Moving your pieces</h3>
+        <dl class="guide-movement">
+          <dt>King</dt><dd>One square in any direction.</dd>
+          <dt>Queen</dt><dd>Leaps exactly two squares straight or diagonally. It can jump over the intervening piece.</dd>
+          <dt>Rook</dt><dd>Any distance along a row or column, until blocked.</dd>
+          <dt>Bishop</dt><dd>Any distance diagonally, until blocked.</dd>
+          <dt>Knight</dt><dd>An L-shaped leap: two squares one way and one square across. It jumps over other pieces.</dd>
+          <dt>Pawn</dt><dd>One square forward into an empty space; captures one square diagonally forward. No opening double-step or en passant.</dd>
+        </dl>
+        <div class="guide-grid">
+          <article class="guide-block"><h3 class="pixel">Which way is forward?</h3><p>Red moves up; Yellow moves down. Blue moves left; Black moves right. Pawn directions stay fixed throughout the game.</p></article>
+          <article class="guide-block"><h3 class="pixel">The four thrones</h3><p>Kings begin in four extra cells outside the 8 × 8 board. These are playable throne cells, with room for one piece each.</p></article>
         </div>
-
-        <h3>Concourse Mechanics</h3>
-        <p>When a piece completes a 2✕2 square occupied by one piece from each of the four armies, the moving piece <strong>captures all three others</strong>. This is rare—only five specific board regions support concourses:</p>
-        <ul>
-          <li><strong>Central cluster:</strong> c4, c5, d4, d5</li>
-          <li><strong>Northwest:</strong> b2, b3, c2, c3</li>
-          <li><strong>Northeast:</strong> b6, b7, c6, c7</li>
-          <li><strong>Southwest:</strong> f2, f3, g2, g3</li>
-          <li><strong>Southeast:</strong> f6, f7, g6, g7</li>
-        </ul>
-
-        <h3>Throne Squares &amp; King Seizure</h3>
-        <p>The four corner throne squares (a1, a8, h1, h8) hold double occupancy only at the start (king + partner piece). Once either piece leaves, the throne reverts to single occupancy forever.</p>
-        <p><em>King Seizure:</em> A living king may move onto a friendly ally's throne to seize control of that army. Frozen armies can be reactivated this way. Control persists even if the usurping king later moves away.</p>
-
-        <h3>Prisoner Exchange</h3>
-        <p>If opposing players have each captured an enemy king, they may mutually agree to exchange "prisoner" kings. Returned kings reactivate their frozen pieces and are placed on their throne squares (or nearby empty squares).</p>
-
-        <h3>Privileged Pawns & Demotion</h3>
-        <p>When a side is reduced to few pieces, pawns gain <em>privilege</em> and can promote to any major/minor piece (not just their restricted type). If a privileged pawn promotes to a piece type that side already has, the original piece is demoted to the corresponding pawn.</p>
-
-        <h3>Special Endgame Rules</h3>
-        <ul>
-          <li><strong>Bare King Draw:</strong> If both teammates on one team (e.g., Team Sulphur or Team Salt) are reduced to bare kings (no other pieces), the game is a draw.</li>
-          <li><strong>Stalemate:</strong> A player with only moves that put their king in check is stalemated. They skip turns until the board changes.</li>
-          <li><strong>Withdrawal:</strong> A player may voluntarily withdraw; their pieces pass to their teammate's control.</li>
-        </ul>
-      </div>
+      </section>
+      <section class="guide-section" id="guide-captures">
+        <h3 class="pixel">Captures &amp; promotion</h3>
+        <div class="guide-grid">
+          <article class="guide-block"><h3 class="pixel">An army freezes</h3><p>When its king is captured, the army’s remaining pieces stay on the board. They cannot move or be captured, and they still block sliding pieces.</p><p>Frozen armies, and armies with no available geometric moves, are skipped in the turn order.</p></article>
+          <article class="guide-block"><h3 class="pixel">A pawn restores its piece</h3><p>Each pawn belongs to a particular major-piece type. On reaching the end of its forward path, it promotes to that type only if that piece is missing from its army.</p><p>Promotion is automatic, with no free choice of piece. An external throne can extend the path beyond the board edge.</p></article>
+        </div>
+      </section>
+      <section class="guide-section" id="guide-exchange">
+        <h3 class="pixel">Prisoner exchanges online</h3>
+        <p>Two connected human captors whose own kings are still alive may offer an exchange when each holds the other captor’s allied king. The other player must accept within 60 seconds.</p>
+        <p>An offer is available after the qualifying capture, or on a later turn of your own. Both kings return together to safe empty thrones or nearby safe squares; if no safe pair is available, neither returns.</p>
+        <p>Offers clear when play or control changes, or the room pauses or ends. Negotiated exchanges are available in online rooms; local play does not provide them.</p>
+      </section>
+      <details><summary>Historical rules that this build does not use</summary><p>Older accounts include additional conventions such as concourses, privileged pawns, demotion, shared-square occupancy, king seizure, bare-king draws, and voluntary withdrawal. These are historical context, not actions available in this game.</p><p>The teams are fixed here. There is no selectable elemental board, castling, or check-based stalemate rule.</p></details>
     </section>
-
+    <section class="tab-panel enochian-guide" id="tab-meanings" aria-label="Enochian piece meanings">
+      <header class="guide-header"><p class="guide-kicker">The symbolic army</p><h2 class="pixel">Piece Meanings</h2><p>The pieces carry Egyptian names and elemental associations in Golden Dawn ritual descriptions. Their symbolism adds context; movement is governed by the playing guide.</p></header>
+      <div class="guide-grid">
+        <article class="guide-block"><h3 class="pixel">King · Spirit</h3><p><strong>Osiris</strong> (Aeshoori), the spiritual center of the army.</p><p>In play: one square in any direction. Losing the king freezes its army.</p></article>
+        <article class="guide-block"><h3 class="pixel">Knight · Fire</h3><p><strong>Horus</strong> (Hoor), associated with Fire.</p><p>In play: an L-shaped leap over intervening pieces.</p></article>
+        <article class="guide-block"><h3 class="pixel">Queen · Water</h3><p><strong>Isis</strong>, associated with Water.</p><p>In play: an exact two-square leap, straight or diagonal.</p></article>
+        <article class="guide-block"><h3 class="pixel">Bishop · Air</h3><p><strong>Aroueris</strong>, associated with Air.</p><p>In play: travels diagonally until blocked.</p></article>
+        <article class="guide-block"><h3 class="pixel">Rook · Earth</h3><p><strong>Nephthys</strong>, associated with Earth.</p><p>In play: travels along a row or column until blocked.</p></article>
+        <article class="guide-block"><h3 class="pixel">Pawns · Attendants</h3><p>The four pawns serve the elemental pieces.</p><p>In play: each pawn can restore its own missing major-piece type through promotion.</p></article>
+      </div>
+      <aside class="guide-callout">The army colors represent elements too: Yellow / Air, Red / Fire, Blue / Water, and Black / Earth. This symbolism does not change the fixed teams.</aside>
+      <p>Historical reference: <a href="https://hermetic.com/_media/invisible-college/misc/enochess.txt" target="_blank" rel="noopener noreferrer">Golden Dawn Enochian chess ritual transcription</a>.</p>
+    </section>
     <!-- HISTORY TAB -->
-    <section class="tab-panel" id="tab-history">
-      <div class="card">
-        <h2 class="pixel">The Golden Dawn & Hermetic Origins</h2>
-
-        <h3>A Secret Teaching</h3>
-        <p>Enochian Chess arose in the Victorian occult milieu, specifically within the <strong>Hermetic Order of the Golden Dawn</strong>, where it was used both as a recreational game and as a divination system. The game represents a synthesis of Hermetic philosophy, chess strategy, and esoteric correspondences.</p>
-
-        <div class="note">
-          <strong>W.B. Yeats &amp; MacGregor Mathers (1894):</strong> The poet William Butler Yeats recorded playing a "curious form of chess" for four players with S.L. MacGregor Mathers, a founding member of the Golden Dawn. This note, combined with a Golden Dawn paper dated no later than 1897, anchors the game's historical attestation.
+    <section class="tab-panel enochian-guide" id="tab-history" aria-label="Enochian history and lore">
+      <header class="guide-header"><p class="guide-kicker">Origins &amp; tradition</p><h2 class="pixel">History &amp; Lore</h2><p>A Victorian occult chess tradition, drawing on an older magical system. Its game and divination practices are related, but distinct.</p><nav class="guide-jump" aria-label="History sections"><a href="#guide-origins">Origins</a><a href="#guide-divination">Divination</a><a href="#guide-sources">Sources</a></nav></header>
+      <section class="guide-section" id="guide-origins"><h3 class="pixel">From tablets to a chessboard</h3>
+        <div class="guide-grid">
+          <article class="guide-block"><h3 class="pixel">16th century · The roots</h3><p>John Dee and Edward Kelley’s Enochian work supplied the magical system and elemental tablets later used by the Golden Dawn. They did not create this Victorian chess game.</p></article>
+          <article class="guide-block"><h3 class="pixel">19th century · The game</h3><p>The Hermetic Order of the Golden Dawn brought Enochian material into its ritual practice. Westcott and Mathers developed a four-handed chess tradition for play and divination.</p></article>
         </div>
-
-        <h3>Four Elements &amp; Four Colors</h3>
-        <p>The game's structure mirrors the four classical elements:</p>
-        <ul>
-          <li><strong>🟡 Yellow = Air</strong> – intellect, divination, swift thought</li>
-          <li><strong>🔴 Red = Fire</strong> – will, action, transformation</li>
-          <li><strong>🔵 Blue = Water</strong> – emotion, intuition, flow</li>
-          <li><strong>⬛ Black = Earth</strong> – matter, foundation, stability</li>
-        </ul>
-        <p>Teams alternate based on the elemental board chosen, ensuring that Fire-Earth oppose Air-Water, reflecting alchemical balance.</p>
-
-        <h3>Pieces &amp; Occult Correspondences</h3>
-        <p>Each piece was traditionally rendered as a hand-painted stand-up with Egyptian-inspired imagery and specific color schemes. The original equipment featured:</p>
-        <ul>
-          <li><strong>Kings:</strong> White reverse (sovereignty, unity)</li>
-          <li><strong>Knights:</strong> Red reverse (Mars, action, conflict)</li>
-          <li><strong>Queens:</strong> Blue reverse (Venus, harmony, intellect)</li>
-          <li><strong>Bishops:</strong> Yellow reverse (Mercury, communication, wisdom)</li>
-          <li><strong>Rooks:</strong> Black reverse (Saturn, structure, boundaries)</li>
-        </ul>
-
-        <h3>Enoch & the Name</h3>
-        <p>The game takes its name from <strong>Enoch</strong>, the biblical patriarch who "walked with God" and was taken without experiencing death. In occult tradition, Enoch is associated with hidden mystical knowledge and divine secrets—hence the game's connection to esoteric teaching. It was also historically known as <em>Rosicru cian Chess</em>, after the Order of the Rosy Cross, from which the Golden Dawn claimed spiritual lineage.</p>
-
-        <h3>Chris Zalewiski's Reconstruction</h3>
-        <p>Modern rules are based on Chris Zalewiski's reconstruction of Golden Dawn material, drawing on notes attributed to Israel Regardie and an "Official Ritual" credited to S.L. Mathers. The authorship remains uncertain—some scholars argue the rules derive from earlier German occult groups—but the game's esoteric purpose is clear: a vehicle for both intellectual play and divination within the Golden Dawn's teaching hierarchy.</p>
-
-        <div class="note">
-          The Golden Dawn regarded Enochian Chess as a <strong>secret teaching</strong>. It was kept from casual learners and used primarily by advanced practitioners who understood its symbolic layers: each piece's movement, each elemental correspondence, each board configuration held deeper meaning for the initiated.
-        </div>
-      </div>
+        <p>Chris Zalewski’s study describes this late-Victorian development and the relationship between the boards and Dee’s four great elemental tablets.</p>
+      </section>
+      <section class="guide-section" id="guide-divination"><h3 class="pixel">Play and divination</h3><p>Ritual accounts describe a separate divinatory practice using dice and a stationary Ptah figure to mark the subject of a question.</p><aside class="guide-callout"><strong>In this app:</strong> Enochian is a strategy game. There is no Ptah piece, ritual dice procedure, or divinatory result.</aside></section>
+      <section class="guide-section" id="guide-sources"><h3 class="pixel">Read the sources</h3><p>Historical accounts can differ. These references explain the tradition; the How to Play tab describes the rules implemented here.</p>
+        <ol class="guide-sources">
+          <li><a href="https://www.labirintoermetico.com/06Numerologia_Cabala/Zalewski-Enochian-Chess-of-the-Golden-Dawn.pdf" target="_blank" rel="noopener noreferrer">Chris Zalewski · Enochian Chess of the Golden Dawn (1994)</a><br>Book-length treatment of the history, symbolism, boards, and rules.</li>
+          <li><a href="https://hermetic.com/_media/invisible-college/misc/enochess.txt" target="_blank" rel="noopener noreferrer">Golden Dawn · Enochian Chess ritual transcription</a><br>Piece correspondences and the divination procedure.</li>
+          <li><a href="https://www.chessvariants.com/historic.dir/enochian.html" target="_blank" rel="noopener noreferrer">Jeff Rients · Enochian Chess, The Chess Variant Pages</a><br>A modern overview of the historical variant, also referenced in this project’s research.</li>
+        </ol>
+      </section>
     </section>
+    <!-- ENOCHIAN_GUIDE_CONTENT_END -->
 
     <!-- SESSION LOG TAB -->
     <section class="tab-panel" id="tab-sessionlog">

@@ -44,6 +44,21 @@ test('Chaturaji byte changes are rejected, even within its script', () => {
   assert.throws(() => preservation.checkGamePage('chaturaji', source.replace('<script>', '<script>/* changed */'), source));
 });
 
+test('guide redesign cannot consume gameplay markup or escape its CSS scope', () => {
+  for (const changed of [
+    current.replace('<!-- ENOCHIAN_GUIDE_CONTENT_END -->', ''),
+    current.replace('<!-- ENOCHIAN_GUIDE_CONTENT_BEGIN -->', '<!-- ENOCHIAN_GUIDE_CONTENT_BEGIN --><!-- ENOCHIAN_GUIDE_CONTENT_BEGIN -->'),
+    current.replace('.enochian-guide{', 'body{'),
+    current.replace('.enochian-guide{', '.enochian-guide ~ .mp-panel{'),
+    current.replace('<!-- ENOCHIAN_GUIDE_STYLES_BEGIN -->', '').replace('<body>', '<body><!-- ENOCHIAN_GUIDE_STYLES_BEGIN -->'),
+    current.replace('    <!-- ENOCHIAN_GUIDE_CONTENT_BEGIN -->', '').replace('<main>', '<main>\n    <!-- ENOCHIAN_GUIDE_CONTENT_BEGIN -->'),
+    current.replace('<header class="guide-header">', '<header class="guide-header" onclick="alert(1)">'),
+  ]) {
+    assert.notEqual(changed, current);
+    assert.throws(() => preservation.checkGamePage('enochian', changed, originals.enochian.bytes.toString('utf8')));
+  }
+});
+
 test('launcher migration is locked to the committed Task 0 page', () => {
   assert.equal(typeof preservation.checkLauncher, 'function');
   const source = readFileSync(`${root}/index.html`, 'utf8');
