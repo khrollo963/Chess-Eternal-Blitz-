@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { extractGames, inventory, launcherOutsideLoader, readBaseline, readOriginal, root, sha256, stripPayloads } from './client-baseline.mjs';
+import { stripChangelog } from './render-changelogs.mjs';
 
 function outsideInlineScript(source) {
   const scripts = [...source.matchAll(/<script>([\s\S]*?)<\/script>/g)];
@@ -32,6 +33,7 @@ export function withoutMultiplayerAdditions(source) {
 }
 
 export function checkGamePage(game, current, original) {
+  current = stripChangelog(current);
   if (game === 'chaturaji') assert.equal(current, original, 'Chaturaji remains byte-identical');
   else {
     assert.equal(game, 'enochian', 'Only Enochian has a permitted script boundary');
@@ -99,10 +101,7 @@ export function checkPreservation() {
     assert.equal(sha256(base64), baseline.games[game].base64Sha256, `${game} Base64 snapshot`);
     assert.equal(sha256(bytes), baseline.games[game].decodedSha256, `${game} decoded snapshot`);
     const current = readFileSync(resolve(root, `${game}.html`));
-    if (game === 'chaturaji') {
-      assert.ok(current.equals(bytes), 'Chaturaji page must match the original extraction byte for byte');
-      assert.equal(sha256(current), baseline.games.chaturaji.decodedSha256, 'Chaturaji actual file-byte hash');
-    }
+    if (game === 'chaturaji') assert.equal(sha256(Buffer.from(stripChangelog(current.toString('utf8')))), baseline.games.chaturaji.decodedSha256, 'Chaturaji outside the approved changelog remains byte-identical');
     checkGamePage(game, current.toString('utf8'), bytes.toString('utf8'));
   }
   const launcher = readFileSync(resolve(root, 'index.html'), 'utf8');
@@ -116,5 +115,5 @@ export function checkPreservation() {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   checkPreservation();
-  console.log('Preservation verified: exact Chaturaji and Task 0 launcher; Enochian gameplay markup, CSS, keys, art and statistics protected outside approved script, multiplayer and guide boundaries.');
+  console.log('Preservation verified: Chaturaji outside approved changelog and exact Task 0 launcher; Enochian gameplay markup, CSS, keys, art and statistics protected outside approved script, multiplayer, guide and changelog boundaries.');
 }

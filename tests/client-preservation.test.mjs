@@ -44,6 +44,19 @@ test('Chaturaji byte changes are rejected, even within its script', () => {
   assert.throws(() => preservation.checkGamePage('chaturaji', source.replace('<script>', '<script>/* changed */'), source));
 });
 
+test('approved static changelogs cannot hide gameplay edits or execute code', () => {
+  for (const game of ['chaturaji','enochian']) {
+    const source=readFileSync(`${root}/${game}.html`,'utf8'),original=originals[game].bytes.toString('utf8');
+    preservation.checkGamePage(game,source,original);
+    for (const changed of [
+      source.replace('<!-- GAME_CHANGELOG_CONTENT_END -->',''),
+      source.replace('<!-- GAME_CHANGELOG_NAV_END -->','<!-- GAME_CHANGELOG_NAV_END -->extra'),
+      source.replace('aria-label="'+(game==='chaturaji'?'Chaturaji':'Enochian')+' changelog"','onclick="alert(1)"'),
+      source.replace('<body>','<body data-changed="true">'),
+    ]) assert.throws(()=>preservation.checkGamePage(game,changed,original));
+  }
+});
+
 test('guide redesign cannot consume gameplay markup or escape its CSS scope', () => {
   for (const changed of [
     current.replace('<!-- ENOCHIAN_GUIDE_CONTENT_END -->', ''),

@@ -1,0 +1,477 @@
+{
+  "version": "2.1.0",
+  "historyThrough": "ee9268572a274ede059b08cf12d3e5635f9c112a",
+  "repository": "https://github.com/khrollo963/Chess-Eternal-Blitz-",
+  "policy": "One arcade release version. Major: incompatible rules or public contracts. Minor: compatible features. Patch: fixes, presentation, documentation and internal maintenance. Historical versions are reconstructed from git, not previously published tags. Related commits are grouped; merges are credited without double-counting their changes.",
+  "releases": [
+    {
+      "version": "2.1.0",
+      "type": "minor",
+      "title": "Changelogs in both games",
+      "date": "2026-10-02",
+      "reconstructed": false,
+      "notes": [
+        {
+          "scope": "shared",
+          "text": "Added a themed Changelog tab to both games, with semantic release versions, dated notes and contributor/commit links."
+        },
+        {
+          "scope": "shared",
+          "text": "Reconstructed the complete available main-branch history, including Kenny’s original uploads and README edits, Jon’s asset removal, play-link update and PR merges. Chaturaji gameplay is unchanged."
+        }
+      ],
+      "commits": []
+    },
+    {
+      "version": "2.0.0",
+      "type": "major",
+      "title": "Automatic draw endings",
+      "date": "2026-10-02",
+      "reconstructed": true,
+      "notes": [
+        {
+          "scope": "enochian",
+          "text": "Added bare-kings draws and global stalemate, ending Ken’s two-bot king loop; stopped CPU scheduling, showed draw results and recorded each local result once."
+        },
+        {
+          "scope": "enochian",
+          "text": "Added durable online draw results and half-point team Elo settlement without abandonment penalties; preserved final king-capture victory."
+        },
+        {
+          "scope": "enochian",
+          "text": "Updated the playing guide and recovered qualifying unfinished v1 games without erasing their boards or histories."
+        },
+        {
+          "scope": "enochian",
+          "text": "Breaking compatibility change: rules version 2 and database migration 2 are required. Old active clients must refresh; completed v1 results remain readable."
+        }
+      ],
+      "commits": [
+        {
+          "hash": "ee9268572a274ede059b08cf12d3e5635f9c112a",
+          "date": "2026-10-02",
+          "author": "Jonathan Marien",
+          "subject": "Add automatic Enochian draws and ranked settlement"
+        }
+      ]
+    },
+    {
+      "version": "1.3.2",
+      "type": "patch",
+      "title": "Elemental text colors",
+      "date": "2026-10-02",
+      "reconstructed": true,
+      "notes": [
+        {
+          "scope": "enochian",
+          "text": "Colored elemental piece headings and names with their corresponding Spirit, Fire, Water, Air and Earth colors."
+        }
+      ],
+      "commits": [
+        {
+          "hash": "da5c23323b5daeae496b913b50d65387288238d6",
+          "date": "2026-10-02",
+          "author": "Jonathan Marien",
+          "subject": "Color Enochian piece meanings by element"
+        }
+      ]
+    },
+    {
+      "version": "1.3.1",
+      "type": "patch",
+      "title": "Readable playing and history guides",
+      "date": "2026-10-02",
+      "reconstructed": true,
+      "notes": [
+        {
+          "scope": "enochian",
+          "text": "Reorganized How to Play, Piece Meanings and History & Lore into themed sections, cards and source links; corrected misleading descriptions to match the actual game rules."
+        }
+      ],
+      "commits": [
+        {
+          "hash": "8c9f66beab947cb31978341ac6e27f8403f1b306",
+          "date": "2026-10-02",
+          "author": "Jonathan Marien",
+          "subject": "Improve Enochian guides and correct rule descriptions"
+        }
+      ]
+    },
+    {
+      "version": "1.3.0",
+      "type": "minor",
+      "title": "GitHub sign-in and startup recovery",
+      "date": "2026-10-02",
+      "reconstructed": true,
+      "notes": [
+        {
+          "scope": "enochian",
+          "text": "Added configurable GitHub-only sign-in so players can sign in without relying on email delivery."
+        },
+        {
+          "scope": "enochian",
+          "text": "Restored startup and recovery for matches at the command cap and added safe startup diagnostics."
+        }
+      ],
+      "commits": [
+        {
+          "hash": "e0768f2cc63d465e13f56489d2834a28054096b8",
+          "date": "2026-10-02",
+          "author": "Jonathan Marien",
+          "subject": "Restore capped-match startup and wire GitHub sign-in"
+        }
+      ]
+    },
+    {
+      "version": "1.2.0",
+      "type": "minor",
+      "title": "Ranked activation and visible notifications",
+      "date": "2026-10-02",
+      "reconstructed": true,
+      "notes": [
+        {
+          "scope": "enochian",
+          "text": "Added ranked activation configuration and prominent toast notifications; room/color conflicts now provide actionable feedback."
+        },
+        {
+          "scope": "enochian",
+          "text": "Stopped repeated rejected bot commands and full-record idle polling that drove excess database egress; added bounded capacity, metadata maintenance and failure diagnostics."
+        },
+        {
+          "scope": "enochian",
+          "text": "Documented security and scenario audits, remaining live acceptance checks and the email-code template."
+        },
+        {
+          "scope": "shared",
+          "text": "Jon Marien merged PR #2 into main."
+        }
+      ],
+      "commits": [
+        {
+          "hash": "9d202e3f95e4b06e748a1703930ae6480d3d0fa4",
+          "date": "2026-10-02",
+          "author": "Jonathan Marien",
+          "subject": "Fix multiplayer egress loops and add ranked notifications"
+        },
+        {
+          "hash": "a6b8455cc3504e859fe214e5289ab2f01378af45",
+          "date": "2026-10-02",
+          "author": "Jon Marien",
+          "subject": "Merge pull request #2 from khrollo963/codex/ranked-lobby-notifications"
+        }
+      ]
+    },
+    {
+      "version": "1.1.0",
+      "type": "minor",
+      "title": "Authoritative online play",
+      "date": "2026-10-02",
+      "reconstructed": true,
+      "notes": [
+        {
+          "scope": "enochian",
+          "text": "Added versioned authoritative commands, revision checks, duplicate-request replay, private invitations and seat ownership over the pinned Bun/Colyseus transport."
+        },
+        {
+          "scope": "enochian",
+          "text": "Persisted matches, events, snapshots and recovery credentials in a private PostgreSQL schema; added exclusive server ownership and restart recovery."
+        },
+        {
+          "scope": "enochian",
+          "text": "Added casual server bots and cumulative seat-reclaim allowances, plus negotiated human prisoner exchanges that restore both kings atomically."
+        },
+        {
+          "scope": "enochian",
+          "text": "Implemented verified identities, four-human ranked admission, account locks, disconnect pauses, rating settlement and abandonment cooldowns. Ranked activation followed in a later release."
+        },
+        {
+          "scope": "enochian",
+          "text": "Connected the online lobby and sign-in handoff outside the game frame; secured origins, message sizes, rate limits, TLS ingress and redacted failures."
+        },
+        {
+          "scope": "shared",
+          "text": "Added reproducible client ZIP and standalone HTML packaging, serving and deployment configuration, documentation and an operational handoff."
+        },
+        {
+          "scope": "enochian",
+          "text": "Fixed final sign-in and website routing issues; terminal rooms retain final snapshots and stop idle polling before disposal."
+        },
+        {
+          "scope": "shared",
+          "text": "Jon Marien merged PR #1 and updated the README play link to the Railway server. Chaturaji remained local play."
+        }
+      ],
+      "commits": [
+        {
+          "hash": "19178d3c40cbc74175c62980a6d3afe98033ca6f",
+          "date": "2026-10-02",
+          "author": "Jonathan Marien",
+          "subject": "feat(server): validate pinned Bun Colyseus transport"
+        },
+        {
+          "hash": "662b275753d7eb258db30fde2e34ba02398fe7eb",
+          "date": "2026-10-02",
+          "author": "Jonathan Marien",
+          "subject": "feat(server): persist revisioned authoritative commands"
+        },
+        {
+          "hash": "39d7074a9b3c6983f3990c1cad49ed5a5aa9bbbf",
+          "date": "2026-10-02",
+          "author": "Jonathan Marien",
+          "subject": "feat(server): add private invitation lobbies and seat ownership"
+        },
+        {
+          "hash": "7c0397299a53b701136d1958626e9b003a62b96a",
+          "date": "2026-10-02",
+          "author": "Jonathan Marien",
+          "subject": "feat: persist multiplayer matches and recover service restarts"
+        },
+        {
+          "hash": "f0a307f93898ddfb9d849251a7cf2b234dbf74bb",
+          "date": "2026-10-02",
+          "author": "Jonathan Marien",
+          "subject": "feat: run casual server bots and enforce cumulative reclaim allowance"
+        },
+        {
+          "hash": "95e173bed15152db60cf33d021e2641a2689b0ae",
+          "date": "2026-10-02",
+          "author": "Jonathan Marien",
+          "subject": "feat: add authoritative human prisoner exchanges"
+        },
+        {
+          "hash": "ce6b46e2aff0f0e0a1083f5cdd8eeeed8e4428e3",
+          "date": "2026-10-02",
+          "author": "Jonathan Marien",
+          "subject": "feat: verify Supabase identities and lock ranked admission"
+        },
+        {
+          "hash": "67c05e28d95e1518d3533e13dda99ab5683be268",
+          "date": "2026-10-02",
+          "author": "Jonathan Marien",
+          "subject": "feat: pause ranked matches and settle ratings exactly once"
+        },
+        {
+          "hash": "30464eebdfd160e9b993ae4d0a068cd07346c638",
+          "date": "2026-10-02",
+          "author": "Jonathan Marien",
+          "subject": "feat: connect multiplayer client and outside-frame Supabase sign-in"
+        },
+        {
+          "hash": "1c0f716732eed493a57a582653da172d502e938c",
+          "date": "2026-10-02",
+          "author": "Jonathan Marien",
+          "subject": "feat: secure Bun ingress and prepare approved Railway deployment"
+        },
+        {
+          "hash": "807bbec98bbe365ded71a1539cdf51c7b7ce70ca",
+          "date": "2026-10-02",
+          "author": "Jonathan Marien",
+          "subject": "feat: package canonical client ZIP and safe standalone HTML"
+        },
+        {
+          "hash": "c13b3ad393f38af7cca40f2aaf24cf7e429635f3",
+          "date": "2026-10-02",
+          "author": "Jonathan Marien",
+          "subject": "docs: record multiplayer implementation and update arcade/server READMEs"
+        },
+        {
+          "hash": "d2709e160e024a4241c7b57baa7145076291ba5b",
+          "date": "2026-10-02",
+          "author": "Jonathan Marien",
+          "subject": "fix: resolve final sign-in, website routing, and terminal room review findings"
+        },
+        {
+          "hash": "203d047f6f90cc6eeeba87175ae163dbd63ad1e1",
+          "date": "2026-10-02",
+          "author": "Jon Marien",
+          "subject": "Merge pull request #1 from khrollo963/codex/task-0-readable-game-pages"
+        },
+        {
+          "hash": "87d40b81869d1fbfbdab362762bab0e87fd0696c",
+          "date": "2026-10-02",
+          "author": "Jon Marien",
+          "subject": "Change game link to new server URL"
+        },
+        {
+          "hash": "3f3641d1a53f1450dde25af7f2da0c05a8d91a8f",
+          "date": "2026-10-02",
+          "author": "Jonathan Marien",
+          "subject": "docs: hand off merged multiplayer and verified main deployment"
+        }
+      ]
+    },
+    {
+      "version": "1.0.4",
+      "type": "patch",
+      "title": "Reliable Enochian CPUs",
+      "date": "2026-10-02",
+      "reconstructed": true,
+      "notes": [
+        {
+          "scope": "enochian",
+          "text": "Repaired pawn and king evaluation, capture scoring and CPU turn scheduling; cancelled stale jobs and prevented duplicate or post-reset bot moves."
+        }
+      ],
+      "commits": [
+        {
+          "hash": "90db90dc7391ef79ac45a299c42fbb59dc894e43",
+          "date": "2026-10-02",
+          "author": "Jonathan Marien",
+          "subject": "fix(enochian): repair AI evaluation and CPU lifecycle"
+        }
+      ]
+    },
+    {
+      "version": "1.0.3",
+      "type": "patch",
+      "title": "Readable sources and regression coverage",
+      "date": "2026-10-02",
+      "reconstructed": true,
+      "notes": [
+        {
+          "scope": "shared",
+          "text": "Extracted both games into readable HTML files and loaded them through relative iframe sources, preserving saved progress, mounted game state and the shared statistics bridge."
+        },
+        {
+          "scope": "enochian",
+          "text": "Extracted the canonical engine with rule parity and added reproducible AI, lifecycle, movement and preservation regressions."
+        }
+      ],
+      "commits": [
+        {
+          "hash": "97b6ce4cd9e984c4eb9dd2c98b292a04245dc242",
+          "date": "2026-10-02",
+          "author": "Jonathan Marien",
+          "subject": "Extract readable game pages and preserve launcher state"
+        },
+        {
+          "hash": "ae47efbccba9f500890fac06479b61b543ddce05",
+          "date": "2026-10-02",
+          "author": "Jonathan Marien",
+          "subject": "Add reproducible Enochian AI and lifecycle regressions"
+        },
+        {
+          "hash": "5f363a75dcf2b4b42c7483c2b66f7c9c6a0c4835",
+          "date": "2026-10-02",
+          "author": "Jonathan Marien",
+          "subject": "Extract immutable canonical Enochian engine with rule parity"
+        }
+      ]
+    },
+    {
+      "version": "1.0.2",
+      "type": "patch",
+      "title": "Arcade presentation",
+      "date": "2026-10-02",
+      "reconstructed": true,
+      "notes": [
+        {
+          "scope": "shared",
+          "text": "Refreshed the README layout while retaining its content and prominent play link; added the poster and landscape hero, then refined the green stag."
+        },
+        {
+          "scope": "shared",
+          "text": "Jon Marien removed the superseded readme-hero.png asset after the replacement hero was added."
+        }
+      ],
+      "commits": [
+        {
+          "hash": "23f17193e38b34871a92e224116e10a9a1dcd625",
+          "date": "2026-10-02",
+          "author": "Jonathan Marien",
+          "subject": "docs: refresh Chess Eternal README presentation"
+        },
+        {
+          "hash": "36aa585a00e8c548a486b0341f26448bedf91dd8",
+          "date": "2026-10-02",
+          "author": "Jonathan Marien",
+          "subject": "docs: add landscape README hero"
+        },
+        {
+          "hash": "9d7a62a0407f6fcf34da3975312be1a757c020e5",
+          "date": "2026-10-02",
+          "author": "Jonathan Marien",
+          "subject": "docs: refine green stag on README hero"
+        },
+        {
+          "hash": "b0a76766e7656468ad148ce8e2686f00fa7abf4c",
+          "date": "2026-10-02",
+          "author": "Jon Marien",
+          "subject": "Delete readme-hero.png"
+        }
+      ]
+    },
+    {
+      "version": "1.0.1",
+      "type": "patch",
+      "title": "The original play link",
+      "date": "2026-09-17",
+      "reconstructed": true,
+      "notes": [
+        {
+          "scope": "shared",
+          "text": "Kenny \"Khrollo\" Badat placed the GitHub Pages play link prominently in the README heading."
+        }
+      ],
+      "commits": [
+        {
+          "hash": "d591ce30dadf28608ae2ac1eff02443808b41fbb",
+          "date": "2026-09-17",
+          "author": "Kenny \"Khrollo\" Badat",
+          "subject": "Update README.md"
+        }
+      ]
+    },
+    {
+      "version": "1.0.0",
+      "type": "initial",
+      "title": "The original arcade",
+      "date": "2026-09-17",
+      "reconstructed": true,
+      "notes": [
+        {
+          "scope": "shared",
+          "text": "Kenny \"Khrollo\" Badat created the repository, wrote and formatted the README, and uploaded the original two-game arcade."
+        },
+        {
+          "scope": "chaturaji",
+          "text": "Four-army dice play, CPU opponents, king-capture scoring, pawn resurrection, themes, achievements, geomancy collectibles and local session history."
+        },
+        {
+          "scope": "enochian",
+          "text": "Local Red/Yellow versus Blue/Black teams, CPU play, frozen captured armies, piece-bound promotion, move history and fast-forward after elimination."
+        },
+        {
+          "scope": "shared",
+          "text": "One launcher with cross-game statistics, retro artwork and sound, plus both games’ original playing and history guides."
+        }
+      ],
+      "commits": [
+        {
+          "hash": "2858d56c4fcfafe9428014551828b08a8d462a63",
+          "date": "2026-09-17",
+          "author": "Kenny \"Khrollo\" Badat",
+          "subject": "Initial commit"
+        },
+        {
+          "hash": "34891df7de5e2aa2757a75a49b8cdd6ce1ee918b",
+          "date": "2026-09-17",
+          "author": "Kenny \"Khrollo\" Badat",
+          "subject": "Update README.md"
+        },
+        {
+          "hash": "687ee72d56061576efa2a464b813d07abd686968",
+          "date": "2026-09-17",
+          "author": "Kenny \"Khrollo\" Badat",
+          "subject": "Update README.md"
+        },
+        {
+          "hash": "a7023f48b23acda229980bb5f95eff5661d1a560",
+          "date": "2026-09-17",
+          "author": "Kenny \"Khrollo\" Badat",
+          "subject": "Add files via upload"
+        }
+      ]
+    }
+  ]
+}

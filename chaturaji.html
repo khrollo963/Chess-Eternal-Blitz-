@@ -625,6 +625,26 @@
     color:var(--parchment); opacity:0.7;
   }
 </style>
+<!-- GAME_CHANGELOG_STYLES_BEGIN -->
+<style>
+.game-changelog{max-width:1040px;margin:0 auto;font-size:22px;line-height:1.5;overflow-wrap:anywhere}
+.game-changelog .release-header{padding:24px;background:var(--panel);border:1px solid var(--gold);margin-bottom:24px}
+.game-changelog h2{font-size:18px;line-height:1.8;color:var(--gold-bright);margin:0 0 16px}
+.game-changelog .release-kicker{color:var(--gold-bright);margin:0 0 12px;font-size:12px;line-height:1.8}
+.game-changelog .release-card{border:1px solid var(--gold);background:var(--panel);margin:0 0 16px;padding:18px 24px}
+.game-changelog summary{cursor:pointer;color:var(--gold-bright)}
+.game-changelog .release-title{font-size:13px;line-height:1.8}
+.game-changelog .release-meta{display:block;font-size:20px;color:var(--parchment);margin-top:8px}
+.game-changelog .release-notes{padding-left:24px;margin:20px 0}
+.game-changelog li{margin:8px 0}
+.game-changelog a{color:var(--gold-bright);text-decoration:underline;text-underline-offset:3px}
+.game-changelog a:focus-visible,.game-changelog summary:focus-visible{outline:2px solid var(--gold-bright);outline-offset:5px}
+.game-changelog .release-commits{border-top:1px solid var(--gold);padding-top:12px;font-size:19px}
+.game-changelog .release-commits ul{padding-left:24px}
+.game-changelog .release-type{display:inline-block;border:1px solid var(--gold);padding:0 8px;margin-right:10px;color:var(--gold-bright)}
+@media(max-width:600px){.game-changelog .release-header,.game-changelog .release-card{padding:18px 16px}.game-changelog h2{font-size:14px}.game-changelog .release-title{font-size:11px}.game-changelog{font-size:21px}}
+</style>
+<!-- GAME_CHANGELOG_STYLES_END -->
 </head>
 <body>
 <div class="crt"></div>
@@ -646,6 +666,9 @@
   <button class="tab-btn" data-tab="sessionlog">Session Log</button>
   <button class="tab-btn" data-tab="mission">Mission &amp; Goals</button>
   <button class="tab-btn" data-tab="support">Support</button>
+<!-- GAME_CHANGELOG_NAV_BEGIN -->
+<button class="tab-btn" data-tab="changelog">Changelog</button>
+<!-- GAME_CHANGELOG_NAV_END -->
 </nav>
 
 <main>
@@ -942,6 +965,82 @@
     </div>
   </section>
 
+<!-- GAME_CHANGELOG_CONTENT_BEGIN -->
+<section class="tab-panel game-changelog" id="tab-changelog" aria-label="Chaturaji changelog">
+  <header class="release-header">
+    <p class="release-kicker pixel">ARCADE RELEASE 2.1.0</p>
+    <h2 class="pixel">Changelog</h2>
+    <p>What changed, who contributed, and when. Chaturaji gameplay is unchanged; shared arcade updates are included here.</p>
+    <p>Major versions change compatibility. Minor versions add features. Patches fix or refine what is already here.</p>
+    <p>Earlier versions are reconstructed from git history, rather than previously published release tags. Both games share the arcade version.</p>
+    <a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer">Read the full project changelog</a>
+  </header>
+  <details class="release-card" open>
+    <summary><span class="release-title pixel">v2.1.0 · Changelogs in both games</span><span class="release-meta"><span class="release-type">minor</span><time datetime="2026-10-02">2026-10-02</time></span></summary>
+    <ul class="release-notes"><li>Added a themed Changelog tab to both games, with semantic release versions, dated notes and contributor/commit links.</li>
+<li>Reconstructed the complete available main-branch history, including Kenny’s original uploads and README edits, Jon’s asset removal, play-link update and PR merges. Chaturaji gameplay is unchanged.</li></ul>
+
+  </details>
+  <details class="release-card">
+    <summary><span class="release-title pixel">v1.2.0 · Ranked activation and visible notifications</span><span class="release-meta"><span class="release-type">minor</span><time datetime="2026-10-02">2026-10-02</time> · reconstructed</span></summary>
+    <ul class="release-notes"><li>Jon Marien merged PR #2 into main.</li></ul>
+    <details class="release-commits"><summary>Project release contributors &amp; commits (2)</summary><ul><li><a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/commit/9d202e3f95e4b06e748a1703930ae6480d3d0fa4" target="_blank" rel="noopener noreferrer">9d202e3</a> · Jonathan Marien · Fix multiplayer egress loops and add ranked notifications</li>
+<li><a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/commit/a6b8455cc3504e859fe214e5289ab2f01378af45" target="_blank" rel="noopener noreferrer">a6b8455</a> · Jon Marien · Merge pull request #2 from khrollo963/codex/ranked-lobby-notifications</li></ul></details>
+  </details>
+  <details class="release-card">
+    <summary><span class="release-title pixel">v1.1.0 · Authoritative online play</span><span class="release-meta"><span class="release-type">minor</span><time datetime="2026-10-02">2026-10-02</time> · reconstructed</span></summary>
+    <ul class="release-notes"><li>Added reproducible client ZIP and standalone HTML packaging, serving and deployment configuration, documentation and an operational handoff.</li>
+<li>Jon Marien merged PR #1 and updated the README play link to the Railway server. Chaturaji remained local play.</li></ul>
+    <details class="release-commits"><summary>Project release contributors &amp; commits (16)</summary><ul><li><a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/commit/19178d3c40cbc74175c62980a6d3afe98033ca6f" target="_blank" rel="noopener noreferrer">19178d3</a> · Jonathan Marien · feat(server): validate pinned Bun Colyseus transport</li>
+<li><a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/commit/662b275753d7eb258db30fde2e34ba02398fe7eb" target="_blank" rel="noopener noreferrer">662b275</a> · Jonathan Marien · feat(server): persist revisioned authoritative commands</li>
+<li><a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/commit/39d7074a9b3c6983f3990c1cad49ed5a5aa9bbbf" target="_blank" rel="noopener noreferrer">39d7074</a> · Jonathan Marien · feat(server): add private invitation lobbies and seat ownership</li>
+<li><a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/commit/7c0397299a53b701136d1958626e9b003a62b96a" target="_blank" rel="noopener noreferrer">7c03972</a> · Jonathan Marien · feat: persist multiplayer matches and recover service restarts</li>
+<li><a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/commit/f0a307f93898ddfb9d849251a7cf2b234dbf74bb" target="_blank" rel="noopener noreferrer">f0a307f</a> · Jonathan Marien · feat: run casual server bots and enforce cumulative reclaim allowance</li>
+<li><a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/commit/95e173bed15152db60cf33d021e2641a2689b0ae" target="_blank" rel="noopener noreferrer">95e173b</a> · Jonathan Marien · feat: add authoritative human prisoner exchanges</li>
+<li><a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/commit/ce6b46e2aff0f0e0a1083f5cdd8eeeed8e4428e3" target="_blank" rel="noopener noreferrer">ce6b46e</a> · Jonathan Marien · feat: verify Supabase identities and lock ranked admission</li>
+<li><a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/commit/67c05e28d95e1518d3533e13dda99ab5683be268" target="_blank" rel="noopener noreferrer">67c05e2</a> · Jonathan Marien · feat: pause ranked matches and settle ratings exactly once</li>
+<li><a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/commit/30464eebdfd160e9b993ae4d0a068cd07346c638" target="_blank" rel="noopener noreferrer">30464ee</a> · Jonathan Marien · feat: connect multiplayer client and outside-frame Supabase sign-in</li>
+<li><a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/commit/1c0f716732eed493a57a582653da172d502e938c" target="_blank" rel="noopener noreferrer">1c0f716</a> · Jonathan Marien · feat: secure Bun ingress and prepare approved Railway deployment</li>
+<li><a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/commit/807bbec98bbe365ded71a1539cdf51c7b7ce70ca" target="_blank" rel="noopener noreferrer">807bbec</a> · Jonathan Marien · feat: package canonical client ZIP and safe standalone HTML</li>
+<li><a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/commit/c13b3ad393f38af7cca40f2aaf24cf7e429635f3" target="_blank" rel="noopener noreferrer">c13b3ad</a> · Jonathan Marien · docs: record multiplayer implementation and update arcade/server READMEs</li>
+<li><a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/commit/d2709e160e024a4241c7b57baa7145076291ba5b" target="_blank" rel="noopener noreferrer">d2709e1</a> · Jonathan Marien · fix: resolve final sign-in, website routing, and terminal room review findings</li>
+<li><a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/commit/203d047f6f90cc6eeeba87175ae163dbd63ad1e1" target="_blank" rel="noopener noreferrer">203d047</a> · Jon Marien · Merge pull request #1 from khrollo963/codex/task-0-readable-game-pages</li>
+<li><a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/commit/87d40b81869d1fbfbdab362762bab0e87fd0696c" target="_blank" rel="noopener noreferrer">87d40b8</a> · Jon Marien · Change game link to new server URL</li>
+<li><a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/commit/3f3641d1a53f1450dde25af7f2da0c05a8d91a8f" target="_blank" rel="noopener noreferrer">3f3641d</a> · Jonathan Marien · docs: hand off merged multiplayer and verified main deployment</li></ul></details>
+  </details>
+  <details class="release-card">
+    <summary><span class="release-title pixel">v1.0.3 · Readable sources and regression coverage</span><span class="release-meta"><span class="release-type">patch</span><time datetime="2026-10-02">2026-10-02</time> · reconstructed</span></summary>
+    <ul class="release-notes"><li>Extracted both games into readable HTML files and loaded them through relative iframe sources, preserving saved progress, mounted game state and the shared statistics bridge.</li></ul>
+    <details class="release-commits"><summary>Project release contributors &amp; commits (3)</summary><ul><li><a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/commit/97b6ce4cd9e984c4eb9dd2c98b292a04245dc242" target="_blank" rel="noopener noreferrer">97b6ce4</a> · Jonathan Marien · Extract readable game pages and preserve launcher state</li>
+<li><a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/commit/ae47efbccba9f500890fac06479b61b543ddce05" target="_blank" rel="noopener noreferrer">ae47efb</a> · Jonathan Marien · Add reproducible Enochian AI and lifecycle regressions</li>
+<li><a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/commit/5f363a75dcf2b4b42c7483c2b66f7c9c6a0c4835" target="_blank" rel="noopener noreferrer">5f363a7</a> · Jonathan Marien · Extract immutable canonical Enochian engine with rule parity</li></ul></details>
+  </details>
+  <details class="release-card">
+    <summary><span class="release-title pixel">v1.0.2 · Arcade presentation</span><span class="release-meta"><span class="release-type">patch</span><time datetime="2026-10-02">2026-10-02</time> · reconstructed</span></summary>
+    <ul class="release-notes"><li>Refreshed the README layout while retaining its content and prominent play link; added the poster and landscape hero, then refined the green stag.</li>
+<li>Jon Marien removed the superseded readme-hero.png asset after the replacement hero was added.</li></ul>
+    <details class="release-commits"><summary>Project release contributors &amp; commits (4)</summary><ul><li><a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/commit/23f17193e38b34871a92e224116e10a9a1dcd625" target="_blank" rel="noopener noreferrer">23f1719</a> · Jonathan Marien · docs: refresh Chess Eternal README presentation</li>
+<li><a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/commit/36aa585a00e8c548a486b0341f26448bedf91dd8" target="_blank" rel="noopener noreferrer">36aa585</a> · Jonathan Marien · docs: add landscape README hero</li>
+<li><a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/commit/9d7a62a0407f6fcf34da3975312be1a757c020e5" target="_blank" rel="noopener noreferrer">9d7a62a</a> · Jonathan Marien · docs: refine green stag on README hero</li>
+<li><a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/commit/b0a76766e7656468ad148ce8e2686f00fa7abf4c" target="_blank" rel="noopener noreferrer">b0a7676</a> · Jon Marien · Delete readme-hero.png</li></ul></details>
+  </details>
+  <details class="release-card">
+    <summary><span class="release-title pixel">v1.0.1 · The original play link</span><span class="release-meta"><span class="release-type">patch</span><time datetime="2026-09-17">2026-09-17</time> · reconstructed</span></summary>
+    <ul class="release-notes"><li>Kenny &quot;Khrollo&quot; Badat placed the GitHub Pages play link prominently in the README heading.</li></ul>
+    <details class="release-commits"><summary>Project release contributors &amp; commits (1)</summary><ul><li><a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/commit/d591ce30dadf28608ae2ac1eff02443808b41fbb" target="_blank" rel="noopener noreferrer">d591ce3</a> · Kenny &quot;Khrollo&quot; Badat · Update README.md</li></ul></details>
+  </details>
+  <details class="release-card">
+    <summary><span class="release-title pixel">v1.0.0 · The original arcade</span><span class="release-meta"><span class="release-type">initial</span><time datetime="2026-09-17">2026-09-17</time> · reconstructed</span></summary>
+    <ul class="release-notes"><li>Kenny &quot;Khrollo&quot; Badat created the repository, wrote and formatted the README, and uploaded the original two-game arcade.</li>
+<li>Four-army dice play, CPU opponents, king-capture scoring, pawn resurrection, themes, achievements, geomancy collectibles and local session history.</li>
+<li>One launcher with cross-game statistics, retro artwork and sound, plus both games’ original playing and history guides.</li></ul>
+    <details class="release-commits"><summary>Project release contributors &amp; commits (4)</summary><ul><li><a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/commit/2858d56c4fcfafe9428014551828b08a8d462a63" target="_blank" rel="noopener noreferrer">2858d56</a> · Kenny &quot;Khrollo&quot; Badat · Initial commit</li>
+<li><a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/commit/34891df7de5e2aa2757a75a49b8cdd6ce1ee918b" target="_blank" rel="noopener noreferrer">34891df</a> · Kenny &quot;Khrollo&quot; Badat · Update README.md</li>
+<li><a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/commit/687ee72d56061576efa2a464b813d07abd686968" target="_blank" rel="noopener noreferrer">687ee72</a> · Kenny &quot;Khrollo&quot; Badat · Update README.md</li>
+<li><a href="https://github.com/khrollo963/Chess-Eternal-Blitz-/commit/a7023f48b23acda229980bb5f95eff5661d1a560" target="_blank" rel="noopener noreferrer">a7023f4</a> · Kenny &quot;Khrollo&quot; Badat · Add files via upload</li></ul></details>
+  </details>
+</section>
+<!-- GAME_CHANGELOG_CONTENT_END -->
 </main>
 
 <footer class="credit pixel">© CHATURAJI: FOUR KINGS ARCADE</footer>
