@@ -85,7 +85,7 @@ export interface RankedSettlementEntry {
   restrictionUntil: number | null;
 }
 export interface RankedSettlementPlan {
-  matchId: string; kind: 'victory' | 'void'; settledAt: number; offenders: Color[]; entries: RankedSettlementEntry[];
+  matchId: string; kind: 'victory' | 'draw' | 'void'; settledAt: number; offenders: Color[]; entries: RankedSettlementEntry[];
 }
 /** Pure proposal: durable unique match settlement, locking and atomic writes belong to the store. */
 export function buildRankedSettlement(record: RankedRecord, accounts: Partial<Record<Color, RankedAccountRating>>, now: number): RankedSettlementPlan {
@@ -104,10 +104,15 @@ export function buildRankedSettlement(record: RankedRecord, accounts: Partial<Re
     const expectedWinner = 1 / (1 + 10 ** ((result.winningTeam === redTeam ? blueMean - redMean : redMean - blueMean) / 400));
     const winnerDelta = Math.round(RATING_K * (1 - expectedWinner));
     redDelta = result.winningTeam === redTeam ? winnerDelta : -winnerDelta;
+  } else if (result.kind === 'draw') {
+    if (result.winningTeam !== null || !['bare_kings','stalemate'].includes(result.reason ?? '')) throw new Error('invalid_result');
+    const redMean = ratings.R / 2 + ratings.Y / 2, blueMean = ratings.B / 2 + ratings.K / 2;
+    const expectedRed = 1 / (1 + 10 ** ((blueMean - redMean) / 400));
+    redDelta = Math.round(RATING_K * (0.5 - expectedRed));
   }
   const offenders = result.kind === 'void' && result.reason === 'abandonment' ? COLORS.filter(color => record.expiredDepartures?.includes(color)) : [];
   const entries = roster.map(({ color }) => {
-    const delta = result.kind === 'victory' ? (color === 'R' || color === 'Y' ? redDelta : -redDelta) : offenders.includes(color) ? -RATING_K : 0;
+    const delta = (result.kind === 'victory' || result.kind === 'draw' ? (color === 'R' || color === 'Y' ? redDelta : -redDelta) : offenders.includes(color) ? -RATING_K : 0) || 0;
     const rating = ratings[color] + delta;
     if (!Number.isSafeInteger(rating)) throw new Error('invalid_rating');
     return { color, accountId: accounts[color]!.accountId, previousRating: ratings[color], delta, rating, restrictionUntil: offenders.includes(color) ? now + RANKED_RESTRICTION_MS : null };

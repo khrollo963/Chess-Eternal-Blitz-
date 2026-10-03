@@ -4,6 +4,10 @@ Updated **2026-10-02** after PR #1 merged and the multiplayer server successfull
 
 ## Follow-up work requested 2026-10-02
 
+The user explicitly authorized pushing and deploying completed project changes by default: "push and deploy it (i shouldnt have to ask everytime)". Continue on `main`, verify the changes, then push and deploy without asking again for routine release approval. Preserve the required single-server lease cutover; tool limitations may still require a specific user action.
+
+The user subsequently requested automatic draw endings after Ken found two bot kings wandering past move 400. Local implementation adds bare-kings draws and global stalemate, including local UI, multiplayer results, ranked settlement and recovery of unfinished v1 games. See [draw endings](docs/superpowers/specs/2026-10-02-enochian-draw-endings.md). This feature requires rules version `enochian-current-2` and private database migration 2. It is not deployed by writing this note; production migration and deployment remain separate actions. Chaturaji is unchanged. The user prefers future work directly on `main`.
+
 The next session explicitly authorized ranked activation, the lobby color-conflict fix, prominent notifications, and security/scenario audits with agents. This supersedes the previous stopping instruction for that scope. See `docs/multiplayer/2026-10-02-ranked-notifications.md` for current implementation and acceptance evidence and `docs/multiplayer/2026-10-02-security-audit.md` for the audit. Historical deployment evidence below remains a checkpoint, not proof that these new changes are live.
 
 ## Stop point and next-session authority

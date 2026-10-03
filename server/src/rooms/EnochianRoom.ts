@@ -5,7 +5,7 @@ import type { LobbyStore } from '../storage/LobbyStore.js';
 import type { VerifiedAuth } from '../storage/LobbyStore.js';
 import { CommandProcessor } from '../domain/commands.js';
 import type { ActorContext } from '../domain/commands.js';
-import { publicSnapshot, type PublicSnapshot } from '../domain/match.js';
+import { publicSnapshot, PROTOCOL_VERSION, RULES_VERSION, type PublicSnapshot } from '../domain/match.js';
 import { BotScheduler, type BotTimer } from '../domain/bots.js';
 import type { CasualService } from '../domain/CasualService.js';
 import type { RankedService } from '../domain/RankedService.js';
@@ -120,7 +120,7 @@ export class EnochianRoom extends Room<{ state: PublicState }> {
         if (this.isReady && !this.isReady()) { client.send('ack', { ok: false, code: 'storage_unavailable', retryable: true }); return; }
         const input = payload as { matchId?: string; requestId?: string; expectedRevision?: number; action?: LobbyAction; protocolVersion?: number; rulesVersion?: string };
         if (!input || typeof input !== 'object' || Array.isArray(input) || Object.getPrototypeOf(input) !== Object.prototype || Object.keys(input).length !== 6 || Object.keys(input).some(key => !['matchId','requestId','expectedRevision','action','protocolVersion','rulesVersion'].includes(key))) { client.send('ack', { ok: false, code: 'invalid_command', retryable: false }); return; }
-        if (!input || input.matchId !== this.matchId || input.protocolVersion !== 1 || input.rulesVersion !== 'enochian-current-1') { client.send('ack', { ok: false, code: 'incompatible_version', retryable: false }); return; }
+        if (!input || input.matchId !== this.matchId || input.protocolVersion !== PROTOCOL_VERSION || input.rulesVersion !== RULES_VERSION) { client.send('ack', { ok: false, code: 'incompatible_version', retryable: false }); return; }
         try {
           await this.preflight();
           const result = await this.lobby!.command(this.matchId!, client.sessionId, input.requestId!, input.expectedRevision!, input.action!);

@@ -40,7 +40,7 @@ export class PostgresRankedSettlement {
         const record = match.rows[0].record as RankedRecord;
         if (record.mode !== 'ranked' || !['finished', 'void'].includes(record.phase)) return null;
         if (!Number.isSafeInteger(now) || now < 0 || !Number.isSafeInteger(now + 600000) || !record.terminalResult ||
-          (record.phase === 'finished' ? record.terminalResult.kind !== 'victory' : record.terminalResult.kind !== 'void')) throw databaseError();
+          (record.phase === 'finished' ? !['victory','draw'].includes(record.terminalResult.kind) : record.terminalResult.kind !== 'void')) throw databaseError();
         const roster = rankedRoster(record as MatchRecord), unstarted = isUnstartedVoid(record);
         if (!unstarted && roster.length !== 4) throw databaseError();
         const ids = roster.map(seat => seat.accountId).sort();

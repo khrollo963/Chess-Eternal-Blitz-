@@ -2,7 +2,7 @@ import { EnochianEngine } from '../generated/enochian-engine.mjs';
 import { publicExchange, publicExchangeAvailable, type PublicExchangeOffer, type Prisoner, type ExchangeOffer } from './exchange.js';
 
 export const PROTOCOL_VERSION = 1;
-export const RULES_VERSION = 'enochian-current-1';
+export const RULES_VERSION = 'enochian-current-2';
 export const COLORS = ['R', 'B', 'Y', 'K'] as const;
 export type Color = typeof COLORS[number];
 export type Phase = 'lobby' | 'active' | 'paused' | 'finished' | 'void';
@@ -16,7 +16,8 @@ export interface Seat {
   color: Color; displayName: string; ownerId: string | null; controller: Controller;
   connected: boolean; ready: boolean; disconnectDeadline: number | null;
 }
-export interface TerminalResult { kind: 'victory' | 'void'; winningTeam: number | null; reason: string | null }
+export type DrawReason = 'bare_kings' | 'stalemate';
+export interface TerminalResult { kind: 'victory' | 'draw' | 'void'; winningTeam: number | null; reason: string | null }
 export interface MatchRecord {
   /** Private application metadata, persisted in full JSON and never spread into public state. */
   prisoners?: Partial<Record<Color, Prisoner>>; exchangeOffer?: ExchangeOffer | null;
@@ -40,7 +41,7 @@ export interface RulesEngine {
   initialState(): EngineState;
   legalMoves(state: EngineState, from: { r: number; c: number }): Array<{ r: number; c: number }>;
   applyMove(state: EngineState, move: Move): { state: EngineState; events: unknown[] };
-  outcome(state: EngineState): { winningTeam: number } | null;
+  outcome(state: EngineState): { winningTeam: number | null; kind?: 'draw'; reason?: DrawReason } | null;
 }
 export interface Move { fr: number; fc: number; tr: number; tc: number }
 export const canonicalEngine = EnochianEngine as unknown as RulesEngine;

@@ -1,4 +1,4 @@
-import { COLORS, publicSnapshot, type Color, type MatchRecord, type Phase } from '../domain/match.js';
+import { COLORS, PROTOCOL_VERSION, RULES_VERSION, canonicalEngine, publicSnapshot, type Color, type MatchRecord, type Phase } from '../domain/match.js';
 import { opaqueToken, credentialHash, verifyCredential } from '../identity/guest.js';
 import type { LobbyRecord, LobbyStore } from '../storage/LobbyStore.js';
 import type { CommandResult } from '../storage/MatchStore.js';
@@ -39,7 +39,10 @@ export class RecoveryCoordinator {
   async claim(matchId: string, lastHeartbeat: number | null, roomId: string | null): Promise<RecoveryRecord> {
     const record = recordOf(await this.options.store.load(matchId));
     const now = this.now();
+    if(record.protocolVersion !== PROTOCOL_VERSION || ![RULES_VERSION,'enochian-current-1'].includes(record.rulesVersion)) throw new Error('incompatible_version');
     if (record.service?.instanceId === this.options.instanceId) return record;
+    const previousRulesVersion = record.rulesVersion;
+    record.rulesVersion = RULES_VERSION;
     const terminal = record.phase === 'finished' || record.phase === 'void';
     const previousInstance = record.service?.instanceId;
     // A last durable observation is conservative when the exact crash instant is unknown.
@@ -88,7 +91,20 @@ export class RecoveryCoordinator {
         for (const color of COLORS) record.seats[color].disconnectDeadline = null;
       }
     }
-    await this.save(record, { type: 'service_recovery', previousInstance, cutoff });
+    // Existing v1 games retain their board and move count. Apply newly approved
+    // terminal rules after preserving any already-expired departure consequence.
+    // Finished/void historical results are never reinterpreted.
+    if(!terminal && record.phase !== 'lobby'){
+      const outcome = canonicalEngine.outcome(record.engine);
+      if(outcome){
+        record.phase = 'finished'; record.engine.over = true;
+        record.terminalResult = {kind:outcome.kind ?? 'victory',winningTeam:outcome.winningTeam,reason:outcome.reason ?? null};
+        record.pendingSettlement = record.mode === 'ranked';
+        record.recoveryDeadline = null; delete record.recovery;
+        for(const color of COLORS) record.seats[color].disconnectDeadline = null;
+      }
+    }
+    await this.save(record, { type: 'service_recovery', previousInstance, previousRulesVersion, cutoff });
     return record;
   }
 

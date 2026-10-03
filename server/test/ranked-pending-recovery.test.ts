@@ -33,7 +33,7 @@ const isolated = !!process.env.TEST_DATABASE_URL && process.env.TEST_DATABASE_IS
     const raw = new PostgresMatchStore(pool, { schema }); await raw.create(record);
     const lost = new PostgresMatchStore(pool, { schema, hooks: { afterCommit: () => { throw new Error('interrupted acknowledgement'); } } });
     const command = { requestId: 'final-move', matchId: record.matchId, expectedRevision: 0,
-      protocolVersion: 1, rulesVersion: 'enochian-current-1', action: { type: 'move', fr: 6, fc: 6, tr: 6, tc: 7 } };
+      protocolVersion: 1, rulesVersion: 'enochian-current-2', action: { type: 'move', fr: 6, fc: 6, tr: 6, tc: 7 } };
     const actor = { actorId: record.seats.R.ownerId!, seat: 'R' as const, controller: 'human' as const };
     expect((await new CommandProcessor({ store: lost }).execute(actor, command)).code).toBe('storage_unavailable');
     const final = await raw.load(record.matchId);

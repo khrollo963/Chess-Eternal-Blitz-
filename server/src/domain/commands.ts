@@ -82,7 +82,7 @@ export class CommandProcessor {
       recordKingCaptures(next, successor.events);
       const outcome = this.engine.outcome(next.engine);
       if (outcome) {
-        next.phase = 'finished'; next.terminalResult = { kind: 'victory', winningTeam: outcome.winningTeam, reason: null };
+        next.phase = 'finished'; next.terminalResult = { kind: outcome.kind ?? 'victory', winningTeam: outcome.winningTeam, reason: outcome.reason ?? null };
         if (next.mode === 'ranked') (next as typeof next & { pendingSettlement?: boolean }).pendingSettlement = true;
       }
       snapshot = publicSnapshot(next);

@@ -59,13 +59,17 @@ test('exported rule constants cannot change geometry, legal sets or team rules',
 });
 
 for (const [label, expression] of auditProbes) {
-  test(`audit parity: ${label}`, () => {
+  test(`${label === 'Bare kings do not cause a draw' ? 'approved draw rule replaces baseline' : 'audit parity'}: ${label}`, () => {
     const harnesses = [];
     for (const version of ['original', 'current']) {
       const h = createHarness({ version });
       h.run(`function fresh(board){ Object.assign(game, {board, alive:{R:true,B:true,Y:true,K:true},turnIndex:0,over:false,playerColor:null,moveCount:0,moveLog:[]}); }`);
-      assert.equal(h.run(expression), true, version);
+      assert.equal(h.run(expression), version !== 'current' || label !== 'Bare kings do not cause a draw', version);
       harnesses.push(h);
+    }
+    if(label === 'Bare kings do not cause a draw') {
+      assert.equal(harnesses[1].snapshot().over,true,'The explicitly approved bare-kings rule ends this position');
+      return;
     }
     const [original, current] = harnesses, state = domain(original.snapshot()), e = engine();
     assert.deepEqual(domain(current.snapshot()), state, 'Full audit state matches original');

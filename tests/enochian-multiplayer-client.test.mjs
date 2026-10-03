@@ -2,17 +2,33 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { createHash, webcrypto } from 'node:crypto';
+import { webcrypto } from 'node:crypto';
 import vm from 'node:vm';
 import { checkGamePage } from '../scripts/check-client-preservation.mjs';
 import { readOriginal, extractGames } from '../scripts/client-baseline.mjs';
+import { generatedEngine } from '../scripts/extract-enochian-engine.mjs';
 
 const html=readFileSync(new URL('../enochian.html',import.meta.url),'utf8');
 const script=html.match(/<script id="enochian-multiplayer-client">([\s\S]*?)<\/script>/)[1];
 function load(){const context=vm.createContext({URL,Map,AbortController});vm.runInContext(script,context);return context.EnochianMultiplayerCore;}
 function state(revision=1,phase='lobby'){
-  return {matchId:'match',revision,protocolVersion:1,rulesVersion:'enochian-current-1',mode:'casual',phase,turn:'R',moveCount:0,board:{'6,7':{color:'R',type:'PAWN_ROOK'}},alive:{R:true,B:true,Y:true,K:true},seats:Object.fromEntries(['R','B','Y','K'].map(color=>[color,{color,displayName:color==='R'?'Alice':'',controller:color==='R'?'human':'bot',connected:color==='R',ready:false,disconnectDeadline:null}])),lobbyDeadline:1800000,recoveryDeadline:null,terminalResult:null,exchangeOffer:null};
+  return {matchId:'match',revision,protocolVersion:1,rulesVersion:'enochian-current-2',mode:'casual',phase,turn:'R',moveCount:0,board:{'6,7':{color:'R',type:'PAWN_ROOK'}},alive:{R:true,B:true,Y:true,K:true},seats:Object.fromEntries(['R','B','Y','K'].map(color=>[color,{color,displayName:color==='R'?'Alice':'',controller:color==='R'?'human':'bot',connected:color==='R',ready:false,disconnectDeadline:null}])),lobbyDeadline:1800000,recoveryDeadline:null,terminalResult:null,exchangeOffer:null};
 }
+
+test('draw results survive direct and synchronized Schema projection without inventing a winning team',()=>{
+  const lib=load(), direct=state(2,'finished');
+  direct.terminalResult={kind:'draw',winningTeam:null,reason:'bare_kings'};
+  assert.deepEqual(JSON.parse(JSON.stringify(lib.projection(direct).terminalResult)),direct.terminalResult);
+  direct.terminalResult=null; direct.terminalKind='draw';direct.winningTeam=0;direct.terminalReason='stalemate';
+  assert.deepEqual(JSON.parse(JSON.stringify(lib.projection(direct).terminalResult)),{kind:'draw',winningTeam:null,reason:'stalemate'});
+});
+test('completed v1 results remain readable but unfinished v1 state still requires an upgrade',()=>{
+  const lib=load(), old=state(2,'finished'); old.rulesVersion='enochian-current-1';
+  old.terminalResult={kind:'victory',winningTeam:1,reason:null};
+  assert.deepEqual(JSON.parse(JSON.stringify(lib.projection(old).terminalResult)),old.terminalResult);
+  assert.throws(()=>lib.projection({...old,phase:'active'}),/incompatible_state/);
+  assert.throws(()=>lib.projection({...old,rulesVersion:'unknown'}),/incompatible_state/);
+});
 function signal(){const listeners=[];const register=fn=>{listeners.push(fn);return()=>{const i=listeners.indexOf(fn);if(i>=0)listeners.splice(i,1);};};register.emit=value=>listeners.slice().forEach(fn=>fn(value));register.clear=()=>{listeners.length=0;};return register;}
 function fixture({fetch:customFetch,initial=state(),join:customJoin}={}){
   const coreLibrary=load(),requests=[],rooms=[],statuses=[],paints=[],changes=[],timers=new Map();let timerId=0;
@@ -21,11 +37,9 @@ function fixture({fetch:customFetch,initial=state(),join:customJoin}={}){
   return {core,rooms,requests,statuses,paints,changes,timers,makeRoom,lib:coreLibrary};
 }
 
-test('approved multiplayer and guide additions preserve protected source and the canonical engine',()=>{
-  const committed=execFileSync('git',['show','HEAD:enochian.html'],{encoding:'utf8',maxBuffer:10*1024*1024});
+test('approved multiplayer, guide and draw changes preserve protected source and server engine parity',()=>{
   checkGamePage('enochian',html,extractGames(readOriginal().toString('utf8')).enochian.bytes.toString('utf8'));
-  const engine=source=>source.match(/\/\/ ENOCHIAN_ENGINE_START([\s\S]*?)\/\/ ENOCHIAN_ENGINE_END/)[1];
-  assert.equal(createHash('sha256').update(engine(html)).digest('hex'),createHash('sha256').update(engine(committed)).digest('hex'));
+  assert.equal(generatedEngine(html),readFileSync(new URL('../server/src/generated/enochian-engine.mjs',import.meta.url),'utf8'));
 });
 
 test('official embedded SDKs are deterministic, pinned and fully licensed without external scripts',()=>{

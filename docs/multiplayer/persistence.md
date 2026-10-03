@@ -45,6 +45,13 @@ Existing managed schemas can be checked with `allowCreate` omitted. Existing
 unmanaged schemas are rejected. An advisory transaction lock serializes migration
 attempts, and SQL plus history are committed together.
 
+The current migration sequence is immutable `001-initial.sql` followed by
+`002-draw-settlements.sql`, which permits the `draw` settlement classification.
+An explicit migration upgrades a recognized v1 history once; repeated calls do
+not reapply DDL. Startup requires both hashes and rejects v1 without writing.
+The operator CLI reports migration version 2. Old code requiring only migration
+1 is not a compatible rollback target after the upgrade.
+
 Every table is schema-qualified. Schema/table access is revoked from PUBLIC and
 from `anon`/`authenticated` when those roles exist; RLS is enabled on every table
 with no browser policies. No existing public table, role, exposed-schema setting

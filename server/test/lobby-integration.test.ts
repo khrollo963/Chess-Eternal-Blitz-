@@ -41,13 +41,13 @@ test('private HTTP invitations and real SDK credentials synchronize committed lo
     expect(JSON.stringify(first.state.toJSON())).not.toContain('ownerId');
     const select = async (room: Room, color: string, id: string) => {
       const revision = (await store.load(a.matchId))!.revision;
-      room.send('lobby_command', { matchId: a.matchId, requestId: id, expectedRevision: revision, protocolVersion: 1, rulesVersion: 'enochian-current-1', action: { type: 'color', color } });
+      room.send('lobby_command', { matchId: a.matchId, requestId: id, expectedRevision: revision, protocolVersion: 1, rulesVersion: 'enochian-current-2', action: { type: 'color', color } });
       await waitFor(() => first.state.revision === revision + 1 && second.state.revision === revision + 1);
     };
     await select(first, 'Y', 'a-yellow');
     await select(second, 'R', 'b-red');
     await select(first, 'B', 'a-blue');
-    const sendReady = (room: Room, id: string) => room.send('lobby_command', { matchId: a.matchId, requestId: id, expectedRevision: room.state.revision, protocolVersion: 1, rulesVersion: 'enochian-current-1', action: { type: 'ready', ready: true } });
+    const sendReady = (room: Room, id: string) => room.send('lobby_command', { matchId: a.matchId, requestId: id, expectedRevision: room.state.revision, protocolVersion: 1, rulesVersion: 'enochian-current-2', action: { type: 'ready', ready: true } });
     const before = first.state.revision;
     sendReady(first, 'a-ready');
     await waitFor(() => second.state.revision === before + 1);
@@ -56,7 +56,7 @@ test('private HTTP invitations and real SDK credentials synchronize committed lo
     await waitFor(() => first.state.phase === 'active');
     expect(first.state.seats.get('Y').controller).toBe('bot');
     const activeRevision = first.state.revision;
-    second.send('command', { matchId: a.matchId, requestId: 'move1', expectedRevision: activeRevision, protocolVersion: 1, rulesVersion: 'enochian-current-1', action: { type: 'move', fr: 6, fc: 7, tr: 5, tc: 7 } });
+    second.send('command', { matchId: a.matchId, requestId: 'move1', expectedRevision: activeRevision, protocolVersion: 1, rulesVersion: 'enochian-current-2', action: { type: 'move', fr: 6, fc: 7, tr: 5, tc: 7 } });
     await waitFor(() => second.state.revision === activeRevision + 1);
     expect((await store.load(a.matchId))?.revision).toBe(second.state.revision);
     expect(second.state.moveCount).toBe(1);
@@ -69,7 +69,7 @@ test('private HTTP invitations and real SDK credentials synchronize committed lo
       if (to) { move = { fr: r!, fc: c!, tr: to.r, tc: to.c }; break; }
     }
     expect(move).toBeDefined();
-    first.send('command', { matchId: a.matchId, requestId: 'blue-move', expectedRevision: record.revision, protocolVersion: 1, rulesVersion: 'enochian-current-1', action: { type: 'move', ...move } });
+    first.send('command', { matchId: a.matchId, requestId: 'blue-move', expectedRevision: record.revision, protocolVersion: 1, rulesVersion: 'enochian-current-2', action: { type: 'move', ...move } });
     await waitFor(() => second.state.revision === record.revision + 1);
     expect(second.state.moveCount).toBe(2);
   } finally {
@@ -101,7 +101,7 @@ test('storage errors are redacted at SDK authentication and command boundaries',
     let ack: { code: string; retryable: boolean } | undefined;
     room.onMessage('ack', value => { ack = value; });
     store.load = async () => { throw new Error('PRIVATE_DATABASE_SENTINEL'); };
-    room.send('command', { matchId: ticket.matchId, requestId: 'fail', expectedRevision: 0, protocolVersion: 1, rulesVersion: 'enochian-current-1', action: { type: 'move', fr: 6, fc: 7, tr: 5, tc: 7 } });
+    room.send('command', { matchId: ticket.matchId, requestId: 'fail', expectedRevision: 0, protocolVersion: 1, rulesVersion: 'enochian-current-2', action: { type: 'move', fr: 6, fc: 7, tr: 5, tc: 7 } });
     await waitFor(() => ack !== undefined);
     expect(ack).toEqual({ ok: false, code: 'storage_unavailable', retryable: true } as never);
     expect(logged.join('\n')).not.toContain('PRIVATE_DATABASE_SENTINEL');

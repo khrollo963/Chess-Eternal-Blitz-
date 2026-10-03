@@ -14,5 +14,5 @@ if (!process.env.DATABASE_URL || !process.env.DATABASE_CA_FILE) throw new Error(
 const pool = createPostgresPool({ connectionString: process.env.DATABASE_URL, ca: readFileSync(resolve(process.env.DATABASE_CA_FILE), 'utf8') });
 try {
   await migratePrivateSchema(pool, { schema, allowCreate: true });
-  console.info(JSON.stringify({ schema, migrationVersion: 1, verified: true }));
+  console.info(JSON.stringify({ schema, migrationVersion: 2, verified: true }));
 } finally { await pool.end(); }

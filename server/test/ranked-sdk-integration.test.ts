@@ -33,7 +33,7 @@ async function setup() {
     for (let i = 0; i < 4; i++) {
       const before = (await store.load(first.matchId))!;
       clients[i]!.send('lobby_command', { matchId: first.matchId, requestId: `ready-${i}`, expectedRevision: before.revision,
-        protocolVersion: 1, rulesVersion: 'enochian-current-1', action: { type: 'ready', ready: true } });
+        protocolVersion: 1, rulesVersion: 'enochian-current-2', action: { type: 'ready', ready: true } });
       await wait(async () => (await store.load(first.matchId))!.revision > before.revision);
     }
     return { store, server, sdk, clients, first, tickets, post, wait, time: (value: number) => { now = value; } };
@@ -49,7 +49,7 @@ test('real ranked SDK drop pauses, strict return resumes and delayed expiry pena
     let ack: { ok: boolean; code: string } | undefined;
     f.clients[2]!.onMessage('ack', value => { ack = value; });
     const move = { matchId: f.first.matchId, requestId: 'paused-move', expectedRevision: paused.revision,
-      protocolVersion: 1, rulesVersion: 'enochian-current-1', action: { type: 'move', fr: 0, fc: 0, tr: 1, tc: 0 } };
+      protocolVersion: 1, rulesVersion: 'enochian-current-2', action: { type: 'move', fr: 0, fc: 0, tr: 1, tc: 0 } };
     f.clients[2]!.send('command', move); await f.wait(async () => !!ack);
     expect(ack!.code).toBe('invalid_phase'); expect((await f.store.load(f.first.matchId))!.engine.moveCount).toBe(0);
     f.time(300999);
@@ -86,12 +86,14 @@ test('four real SDK human controllers complete a canonical ranked match and fina
       let ack: { ok: boolean; code: string } | undefined;
       const unsubscribe = room.onMessage('ack', value => { ack = value; });
       last = { matchId: f.first.matchId, requestId: `human-${sequence++}`, expectedRevision: record.revision,
-        protocolVersion: 1, rulesVersion: 'enochian-current-1', action: { type: 'move', ...move } };
+        protocolVersion: 1, rulesVersion: 'enochian-current-2', action: { type: 'move', ...move } };
       lastRoom = room; room.send('command', last);
       await f.wait(async () => !!ack); unsubscribe(); expect(ack!.ok).toBe(true);
     }
     const finished = (await f.store.load(f.first.matchId))!;
-    expect(finished.phase).toBe('finished'); expect(finished.terminalResult?.kind).toBe('victory');
+    expect(finished.phase).toBe('finished');
+    const outcome = canonicalEngine.outcome(finished.engine)!;
+    expect(finished.terminalResult).toEqual({kind:outcome.kind ?? 'victory',winningTeam:outcome.winningTeam,reason:outcome.reason ?? null});
     expect((finished as typeof finished & { pendingSettlement: boolean }).pendingSettlement).toBe(true);
     let replay: { ok: boolean } | undefined;
     lastRoom!.onMessage('ack', value => { replay = value; }); lastRoom!.send('command', last);

@@ -1,5 +1,5 @@
 // Generated from the canonical marked block in enochian.html. Do not edit.
-// Source SHA-256: 7a707c909cc2890a57bb39607bfa3caaf7927193b07baeb9cdb90ac0b6174364
+// Source SHA-256: dd813905f93cabbe40440cc70e7cc6b645a5d3b73ea9da50b223989ada0ef111
 // 1. Canonical rules. This closure uses only explicit domain state and RNG.
 // Geometry and historical gaps deliberately match the original executable game.
 const EnochianEngine = (() => {
@@ -230,7 +230,7 @@ function chooseAiMove(state, color, difficulty, random = Math.random, options = 
     const attacked = isSquareAttacked(next,next.board,m.tr,m.tc,nonTeam);
     let score = (teamValue(next,team) - teamValue(next,otherTeam) - baseline) * 10;
     const result = outcome(next);
-    if(result) score = result.winningTeam === team ? 1000000 : -1000000;
+    if(result) score = result.kind === 'draw' ? 0 : result.winningTeam === team ? 1000000 : -1000000;
     else {
       if(attacked) score -= pieceValue(mover.type) * policy.risk;
       for(const [square,p] of Object.entries(next.board)){
@@ -268,7 +268,14 @@ function legalMoves(state, from){
 
 function outcome(state){
   const team1 = teamAlive(state, 1), team2 = teamAlive(state, 2);
-  return !team1 || !team2 ? { winningTeam: team1 ? 1 : 2 } : null;
+  if(!team1 || !team2) return { winningTeam: team1 ? 1 : 2 };
+  const living = TURN_ORDER.filter(color => state.alive[color]);
+  if(living.every(color => !armyHasAnyMove(state, color))) return { kind: 'draw', winningTeam: null, reason: 'stalemate' };
+  if(living.every(color => {
+    const pieces = Object.values(state.board).filter(piece => piece.color === color);
+    return pieces.length === 1 && pieces[0].type === 'KING';
+  })) return { kind: 'draw', winningTeam: null, reason: 'bare_kings' };
+  return null;
 }
 
 function applyMove(state, move){

@@ -709,7 +709,15 @@
         <p>An offer is available after the qualifying capture, or on a later turn of your own. Both kings return together to safe empty thrones or nearby safe squares; if no safe pair is available, neither returns.</p>
         <p>Offers clear when play or control changes, or the room pauses or ends. Negotiated exchanges are available in online rooms; local play does not provide them.</p>
       </section>
-      <details><summary>Historical rules that this build does not use</summary><p>Older accounts include additional conventions such as concourses, privileged pawns, demotion, shared-square occupancy, king seizure, bare-king draws, and voluntary withdrawal. These are historical context, not actions available in this game.</p><p>The teams are fixed here. There is no selectable elemental board, castling, or check-based stalemate rule.</p></details>
+      <section class="guide-section" id="guide-draws">
+        <h3 class="pixel">When the game is a draw</h3>
+        <div class="guide-grid">
+          <article class="guide-block"><h3 class="pixel">Only kings remain</h3><p>The game ends automatically when every surviving army has only its king left. Frozen pieces from captured armies do not count.</p><p>This prevents the remaining kings from wandering indefinitely, including when both are controlled by bots.</p></article>
+          <article class="guide-block"><h3 class="pixel">No army can move</h3><p>Stalemate ends the game when none of the surviving armies has a legal move. If another surviving army can move, play continues and the blocked army is skipped.</p><p>These are this app’s draw rules. Kings can still be captured; there is no check or checkmate requirement.</p></article>
+        </div>
+        <p>Both teams share a draw. Ranked games score half a point per team for rating calculations; a draw does not carry an abandonment penalty.</p>
+      </section>
+      <details><summary>Historical rules that this build does not use</summary><p>Older accounts include additional conventions such as concourses, privileged pawns, demotion, shared-square occupancy, king seizure, and voluntary withdrawal. These are historical context, not actions available in this game.</p><p>The teams are fixed here. There is no selectable elemental board, castling, or check-based stalemate rule. The automatic draw conditions above describe this app’s implementation rather than every historical convention.</p></details>
     </section>
     <section class="tab-panel enochian-guide" id="tab-meanings" aria-label="Enochian piece meanings">
       <header class="guide-header"><p class="guide-kicker">The symbolic army</p><h2 class="pixel">Piece Meanings</h2><p>The pieces carry Egyptian names and elemental associations in Golden Dawn ritual descriptions. Their symbolism adds context; movement is governed by the playing guide.</p></header>
@@ -1011,7 +1019,7 @@ function chooseAiMove(state, color, difficulty, random = Math.random, options = 
     const attacked = isSquareAttacked(next,next.board,m.tr,m.tc,nonTeam);
     let score = (teamValue(next,team) - teamValue(next,otherTeam) - baseline) * 10;
     const result = outcome(next);
-    if(result) score = result.winningTeam === team ? 1000000 : -1000000;
+    if(result) score = result.kind === 'draw' ? 0 : result.winningTeam === team ? 1000000 : -1000000;
     else {
       if(attacked) score -= pieceValue(mover.type) * policy.risk;
       for(const [square,p] of Object.entries(next.board)){
@@ -1049,7 +1057,14 @@ function legalMoves(state, from){
 
 function outcome(state){
   const team1 = teamAlive(state, 1), team2 = teamAlive(state, 2);
-  return !team1 || !team2 ? { winningTeam: team1 ? 1 : 2 } : null;
+  if(!team1 || !team2) return { winningTeam: team1 ? 1 : 2 };
+  const living = TURN_ORDER.filter(color => state.alive[color]);
+  if(living.every(color => !armyHasAnyMove(state, color))) return { kind: 'draw', winningTeam: null, reason: 'stalemate' };
+  if(living.every(color => {
+    const pieces = Object.values(state.board).filter(piece => piece.color === color);
+    return pieces.length === 1 && pieces[0].type === 'KING';
+  })) return { kind: 'draw', winningTeam: null, reason: 'bare_kings' };
+  return null;
 }
 
 function applyMove(state, move){
@@ -1372,6 +1387,7 @@ const localCpu = (() => {
 })();
 
 function maybeRunCpuTurn(){
+  if(checkWin()){ updateTurnIndicator(); return; }
   localCpu.schedule();
 }
 
@@ -1386,6 +1402,7 @@ function advanceAndContinue(){
 // 6. Local session results and the existing launcher statistics bridge.
 const MAX_SESSION_LOG_ENTRIES = 30;
 let sessionLog = [];
+let localResultRecorded = false;
 function saveSessionLog(){ try{ localStorage.setItem('enochian_sessionlog_v1', JSON.stringify(sessionLog)); }catch(e){} }
 function loadSessionLog(){ try{ const raw = localStorage.getItem('enochian_sessionlog_v1'); if(raw) sessionLog = JSON.parse(raw) || []; }catch(e){} }
 
@@ -1453,6 +1470,17 @@ function checkWin(){
   if(result){
     game.over = true;
     localCpu.cancel();
+    if(localResultRecorded) return true;
+    localResultRecorded = true;
+    if(result.kind === 'draw'){
+      const description = drawDescription(result.reason);
+      setStatus('☯ Draw. ' + description, true);
+      sndDraw();
+      const yourColor = game.playerColor ? COLOR_MAP[game.playerColor].emoji + ' ' + COLOR_MAP[game.playerColor].label : 'Hotseat';
+      addSessionEntry('draw', 'DRAW', yourColor, 'None', cap(game.difficulty));
+      showGameOverOverlay('draw', description, null);
+      return true;
+    }
     const winningTeam = result.winningTeam;
     const winnerLabel = winningTeam === 1 ? '🌍 Team Sulphur' : '🧂 Team Salt';
     setStatus('🏆 ' + winnerLabel + ' win! Both enemy kings have fallen.', true);
@@ -1484,6 +1512,13 @@ function showGameOverOverlay(resultClass, winnerLabel, winningTeam){
   const msgEl = document.getElementById('gameOverMessage');
   const overlay = document.getElementById('gameOverOverlay');
 
+  if(winningTeam === null){
+    titleEl.textContent = '☯ DRAW';
+    msgEl.textContent = winnerLabel;
+    overlay.classList.add('visible');
+    return;
+  }
+
   let title = '🏆 VICTORY!';
   if(game.playerColor){
     const won = TEAM[game.playerColor] === winningTeam;
@@ -1496,6 +1531,10 @@ function showGameOverOverlay(resultClass, winnerLabel, winningTeam){
 
 function hideGameOverOverlay(){
   document.getElementById('gameOverOverlay').classList.remove('visible');
+}
+
+function drawDescription(reason){
+  return reason === 'stalemate' ? 'Stalemate: no surviving army has a legal move.' : 'Only kings remain in the surviving armies.';
 }
 
 function cap(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
@@ -1656,6 +1695,7 @@ function onBoardClick(e){
 
 function resetGame(){
   localCpu.reset();
+  localResultRecorded = false;
   Object.assign(game, EnochianEngine.initialState());
   game.moveLog = [];
   speedMode = false;
@@ -1869,7 +1909,8 @@ globalThis.EnochianMultiplayerCore = (() => {
   }
   function projection(input){
     const raw = object(input);
-    if(!raw || typeof raw.matchId !== 'string' || raw.matchId.length > 128 || !Number.isSafeInteger(raw.revision) || raw.revision < 0 || raw.protocolVersion !== 1 || raw.rulesVersion !== 'enochian-current-1' || !phases.includes(raw.phase) || !['casual','ranked'].includes(raw.mode) || !colors.includes(raw.turn) || !Number.isSafeInteger(raw.moveCount) || raw.moveCount < 0) throw new Error('incompatible_state');
+    const readableRules = raw && (raw.rulesVersion === 'enochian-current-2' || (raw.rulesVersion === 'enochian-current-1' && ['finished','void'].includes(raw.phase)));
+    if(!raw || typeof raw.matchId !== 'string' || raw.matchId.length > 128 || !Number.isSafeInteger(raw.revision) || raw.revision < 0 || raw.protocolVersion !== 1 || !readableRules || !phases.includes(raw.phase) || !['casual','ranked'].includes(raw.mode) || !colors.includes(raw.turn) || !Number.isSafeInteger(raw.moveCount) || raw.moveCount < 0) throw new Error('incompatible_state');
     const board = Object.create(null), seats = Object.create(null), alive = Object.create(null);
     for(const [key, value] of entries(raw.board)){
       const piece = object(value);
@@ -1888,12 +1929,12 @@ globalThis.EnochianMultiplayerCore = (() => {
       if(typeof alive[color] !== 'boolean') throw new Error('incompatible_state');
     }
     const terminal = raw.terminalResult || (raw.terminalKind ? {kind:raw.terminalKind,winningTeam:raw.winningTeam,reason:raw.terminalReason || null} : null);
-    const terminalResult = terminal && ['victory','void'].includes(terminal.kind) ? {kind:terminal.kind,winningTeam:[1,2].includes(terminal.winningTeam)?terminal.winningTeam:null,reason:typeof terminal.reason==='string'?terminal.reason.slice(0,96):null} : null;
+    const terminalResult = terminal && ['victory','draw','void'].includes(terminal.kind) ? {kind:terminal.kind,winningTeam:terminal.kind==='victory'&&[1,2].includes(terminal.winningTeam)?terminal.winningTeam:null,reason:typeof terminal.reason==='string'?terminal.reason.slice(0,96):null} : null;
     const rawOffer = raw.exchangeOffer || (raw.exchangeId ? { id:raw.exchangeId,proposer:raw.exchangeProposer,counterpart:raw.exchangeCounterpart,guardRevision:raw.exchangeGuardRevision,expiresAt:raw.exchangeExpiresAt,prisoners:[raw.exchangePrisonerFirst,raw.exchangePrisonerSecond] } : null);
     const exchangeOffer = rawOffer && typeof rawOffer.id==='string' && colors.includes(rawOffer.proposer) && colors.includes(rawOffer.counterpart) && Number.isSafeInteger(rawOffer.guardRevision) && Number.isSafeInteger(rawOffer.expiresAt) && Array.isArray(rawOffer.prisoners) && rawOffer.prisoners.length===2 && rawOffer.prisoners.every(c=>colors.includes(c)) ? {id:rawOffer.id,proposer:rawOffer.proposer,counterpart:rawOffer.counterpart,guardRevision:rawOffer.guardRevision,expiresAt:rawOffer.expiresAt,prisoners:[...rawOffer.prisoners]} : null;
     const exchangeAvailable=Object.create(null);
     for(const color of colors){const other=raw.exchangeAvailable?.[color]||rawSeats[color]?.exchangeCounterpart;if(colors.includes(other))exchangeAvailable[color]=other;}
-    return {matchId:raw.matchId,revision:raw.revision,protocolVersion:1,rulesVersion:'enochian-current-1',mode:raw.mode,phase:raw.phase,board,seats,alive,turn:raw.turn,moveCount:raw.moveCount,lobbyDeadline:deadline(raw.lobbyDeadline),recoveryDeadline:deadline(raw.recoveryDeadline),terminalResult,exchangeOffer,exchangeAvailable};
+    return {matchId:raw.matchId,revision:raw.revision,protocolVersion:1,rulesVersion:raw.rulesVersion,mode:raw.mode,phase:raw.phase,board,seats,alive,turn:raw.turn,moveCount:raw.moveCount,lobbyDeadline:deadline(raw.lobbyDeadline),recoveryDeadline:deadline(raw.recoveryDeadline),terminalResult,exchangeOffer,exchangeAvailable};
   }
   function endpoint(value){
     if(!value) return '';
@@ -1985,7 +2026,7 @@ globalThis.EnochianMultiplayerCore = (() => {
       const requestId='c_'+options.randomId()+'_'+(++serial);
       pending={requestId,type,action};emit();
       pendingTimer=options.setTimeout(()=>{if(pending?.requestId===requestId){clearPending();notify('Confirmation delayed. Reconnect to load the latest committed state before trying again.','warning');connected=false;emit();}},8000);
-      try{room.send(type,{requestId,matchId:ticket.matchId,expectedRevision:snapshot.revision,protocolVersion:1,rulesVersion:'enochian-current-1',action});return true;}
+      try{room.send(type,{requestId,matchId:ticket.matchId,expectedRevision:snapshot.revision,protocolVersion:1,rulesVersion:'enochian-current-2',action});return true;}
       catch{clearPending();connected=false;notify('Connection lost before confirmation. Reconnect to check the committed state.','error');emit();return false;}
     }
     return Object.freeze({view,create:input=>enter('/invitations',input),join:input=>enter('/invitations/join',input),recover,leave,send,http,
@@ -2045,7 +2086,7 @@ if(typeof document!=='undefined'){
         if(state.phase==='lobby')status(view.pending?'Waiting for confirmation…':state.mode==='ranked'?'Ranked lobby: all four signed-in humans must connect and confirm Ready.':'Lobby: at least two humans must connect and confirm Ready.');
         else if(state.phase==='paused')status(state.recoveryDeadline?'Service recovery paused. Return grace ends at '+new Date(state.recoveryDeadline).toLocaleTimeString()+'.':'Ranked match paused until all four humans return within their remaining allowances.');
         else if(state.phase==='active')status(view.pending?'Waiting for server confirmation…':view.connected?'Playing '+names[view.ownColor]+'. '+names[state.turn]+' to move.':'Disconnected. Recover your original seat.');
-        else if(state.terminalResult)status(state.terminalResult.kind==='void'?'Match void: '+(state.terminalResult.reason||'ended'):'Match complete. '+(state.terminalResult.winningTeam===1?'Red and Yellow':'Blue and Black')+' win.');
+        else if(state.terminalResult)status(state.terminalResult.kind==='draw'?'Draw. '+drawDescription(state.terminalResult.reason):state.terminalResult.kind==='void'?'Match void: '+(state.terminalResult.reason||'ended'):'Match complete. '+(state.terminalResult.winningTeam===1?'Red and Yellow':'Blue and Black')+' win.');
       }
       const phaseKey=state?state.matchId+':'+state.phase:null;
       if(phaseKey!==lastPhase){

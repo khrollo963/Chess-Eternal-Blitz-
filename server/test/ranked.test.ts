@@ -69,7 +69,7 @@ test('ranked lifecycle rejects missing or bot rosters, never assigns a bot and r
 test('paused records reject moves and prisoner exchange', async () => {
   const { record } = fixture(); departRanked(record, 'B', 0);
   const store = new MemoryMatchStore(); await store.create(record);
-  const result = await new CommandProcessor({ store }).execute({ actorId: 'owner-R', seat: 'R', controller: 'human' }, { matchId: record.matchId, requestId: 'paused-move', expectedRevision: record.revision, protocolVersion: 1, rulesVersion: 'enochian-current-1', action: { type: 'move', fr: 6, fc: 7, tr: 5, tc: 7 } });
+  const result = await new CommandProcessor({ store }).execute({ actorId: 'owner-R', seat: 'R', controller: 'human' }, { matchId: record.matchId, requestId: 'paused-move', expectedRevision: record.revision, protocolVersion: 1, rulesVersion: 'enochian-current-2', action: { type: 'move', fr: 6, fc: 7, tr: 5, tc: 7 } });
   expect(result.code).toBe('invalid_phase');
   expect(offerExchange(record, { actorId: 'owner-R', seat: 'R', controller: 'human', multiplayer: true, expectedRevision: record.revision, now: 1 }, { offerId: 'offer', counterpart: 'B' }).status).toBe('invalid_phase');
 });

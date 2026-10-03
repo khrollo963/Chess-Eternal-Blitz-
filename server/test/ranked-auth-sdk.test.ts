@@ -40,7 +40,7 @@ test('ranked SDK admission requires the freshly verified original account and fo
     for (let i = 0; i < 4; i++) {
       const revision = (await store.load(first.matchId))!.revision;
       rooms[i]!.send('lobby_command', { matchId: first.matchId, requestId: `ready-${i}`, expectedRevision: revision,
-        protocolVersion: 1, rulesVersion: 'enochian-current-1', action: { type: 'ready', ready: true } });
+        protocolVersion: 1, rulesVersion: 'enochian-current-2', action: { type: 'ready', ready: true } });
       await waitFor(() => rooms[0]!.state.revision === revision + 1);
     }
     expect(rooms[0]!.state.phase).toBe('active');

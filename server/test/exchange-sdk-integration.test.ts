@@ -25,7 +25,7 @@ test('real SDK exchange endpoint persists canonical capture, synchronizes public
     const red = await sdk.joinById(a.roomId, { credential: a.credential }), blue = await sdk.joinById(a.roomId, { credential: b.credential });
     red.reconnection.enabled = false; blue.reconnection.enabled = false;
     red.onMessage('ack', () => {}); blue.onMessage('ack', () => {});
-    const envelope = async (requestId: string, action: unknown) => ({ matchId: a.matchId, requestId, expectedRevision: (await store.load(a.matchId))!.revision, protocolVersion: 1, rulesVersion: 'enochian-current-1', action });
+    const envelope = async (requestId: string, action: unknown) => ({ matchId: a.matchId, requestId, expectedRevision: (await store.load(a.matchId))!.revision, protocolVersion: 1, rulesVersion: 'enochian-current-2', action });
     const send = async (room: Room, type: string, payload: unknown): Promise<CommandResult> => {
       let ack: CommandResult | undefined; const off = room.onMessage('ack', value => { ack = value; });
       room.send(type, payload); await wait(async () => !!ack); off(); return ack!;
@@ -37,6 +37,7 @@ test('real SDK exchange endpoint persists canonical capture, synchronizes public
     const install = async () => {
       const record = (await store.load(a.matchId))!, expectedRevision = record.revision;
       record.engine.board = { '7,7': { color: 'R', type: 'KING' }, '0,7': { color: 'B', type: 'KING' }, '6,7': { color: 'K', type: 'KING' } };
+      record.engine.board['4,4'] = { color: 'R', type: 'ROOK' };
       record.engine.alive = { R: true, B: true, Y: false, K: true }; record.engine.turnIndex = 0; record.engine.over = false; record.engine.moveCount = 1;
       record.prisoners = {}; record.exchangeOffer = null;
       recordKingCaptures(record, [{ type: 'capture', piece: { color: 'Y', type: 'KING' }, byColor: 'B' }]);

@@ -24,7 +24,7 @@ test('real SDK two humans and two canonical bots complete a full initial-state m
     let red = await sdk.joinById(a.roomId, { credential: a.credential }); clients.push(red);
     const blue = await sdk.joinById(a.roomId, { credential: b.credential }); clients.push(blue);
     for (const room of clients) { room.onMessage('ack', () => {}); room.reconnection.enabled = false; }
-    const envelope = async (requestId: string, action: unknown) => ({ matchId: a.matchId, requestId, expectedRevision: (await store.load(a.matchId))!.revision, protocolVersion: 1, rulesVersion: 'enochian-current-1', action });
+    const envelope = async (requestId: string, action: unknown) => ({ matchId: a.matchId, requestId, expectedRevision: (await store.load(a.matchId))!.revision, protocolVersion: 1, rulesVersion: 'enochian-current-2', action });
     red.send('lobby_command', await envelope('ready-red', { type: 'ready', ready: true }));
     await wait(async () => (await store.load(a.matchId))!.seats.R.ready);
     blue.send('lobby_command', await envelope('ready-blue', { type: 'ready', ready: true }));
@@ -53,13 +53,15 @@ test('real SDK two humans and two canonical bots complete a full initial-state m
         const room = color === 'R' ? red : blue;
         let ack: { ok: boolean; code: string } | undefined;
         const unsubscribe = room.onMessage('ack', value => { ack = value; });
-        room.send('command', { matchId: a.matchId, requestId: `human-${sequence++}`, expectedRevision: record.revision, protocolVersion: 1, rulesVersion: 'enochian-current-1', action: { type: 'move', ...move } });
+        room.send('command', { matchId: a.matchId, requestId: `human-${sequence++}`, expectedRevision: record.revision, protocolVersion: 1, rulesVersion: 'enochian-current-2', action: { type: 'move', ...move } });
         await wait(async () => !!ack); unsubscribe();
         expect(ack!.ok).toBe(true);
       } else await Bun.sleep(2);
     }
     const finished = (await store.load(a.matchId))!;
-    expect(finished.phase).toBe('finished'); expect(finished.terminalResult?.kind).toBe('victory');
+    expect(finished.phase).toBe('finished');
+    const outcome = canonicalEngine.outcome(finished.engine)!;
+    expect(finished.terminalResult).toEqual({kind:outcome.kind ?? 'victory',winningTeam:outcome.winningTeam,reason:outcome.reason ?? null});
     expect(finished.engine.moveCount).toBeGreaterThan(4);
     expect(absent).toBe(true); expect(finished.seats.R.connected).toBe(false);
     const returned = await post('/invitations/recover', { matchId: a.matchId, credential: a.credential });

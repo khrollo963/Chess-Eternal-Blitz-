@@ -21,7 +21,7 @@ function recordFixture(): ExchangeRecord {
   return record;
 }
 const actor = (seat: Color = 'R') => ({ actorId: `private-${seat}`, seat, controller: 'human' as const });
-const envelope = (requestId = 'offer-1', revision = 2, action: unknown = { type: 'offer', counterpart: 'B' }) => ({ requestId, matchId: 'exchange-1', expectedRevision: revision, protocolVersion: 1, rulesVersion: 'enochian-current-1', action });
+const envelope = (requestId = 'offer-1', revision = 2, action: unknown = { type: 'offer', counterpart: 'B' }) => ({ requestId, matchId: 'exchange-1', expectedRevision: revision, protocolVersion: 1, rulesVersion: 'enochian-current-2', action });
 async function fixture() {
   const store = new MemoryMatchStore(); await store.create(recordFixture()); let now = 100;
   const published: unknown[] = [];
@@ -105,6 +105,7 @@ test('canonical terminal move committed before acceptance leaves outcome final a
 });
 test('recovery claim durably invalidates a pending offer while preserving the capture ledger and board', async () => {
   const record = Object.assign(recordFixture(), { lobby: { inviteCode: 'TEST01', hostOwnerId: 'private-R', roomId: 'old-room', owners: {} }, service: { instanceId: 'old', observedAt: 100 } }) as RecoveryRecord;
+  record.engine.board['4,4'] = { color: 'R', type: 'ROOK' };
   const store = new MemoryLobbyStore(); await store.create(record);
   const service = new ExchangeService({ store, clock: () => 100 }); expect((await service.execute(actor(), envelope())).ok).toBe(true);
   const before = (await store.load(record.matchId))!;

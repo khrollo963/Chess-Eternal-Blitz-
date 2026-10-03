@@ -6,7 +6,7 @@ import { MemoryMatchStore } from '../src/storage/MemoryMatchStore.js';
 
 const actor = { actorId: 'private-owner', seat: 'R' as const, controller: 'human' as const };
 function command(requestId = 'request-1', expectedRevision = 0) {
-  return { requestId, matchId: 'match-1', expectedRevision, protocolVersion: 1, rulesVersion: 'enochian-current-1', action: { type: 'move', fr: 6, fc: 7, tr: 5, tc: 7 } };
+  return { requestId, matchId: 'match-1', expectedRevision, protocolVersion: 1, rulesVersion: 'enochian-current-2', action: { type: 'move', fr: 6, fc: 7, tr: 5, tc: 7 } };
 }
 async function fixture() {
   const store = new MemoryMatchStore();
